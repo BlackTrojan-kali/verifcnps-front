@@ -77,9 +77,14 @@ export const Sidebar = () => {
                 ) : (
                     <div className="flex items-center gap-3 font-bold text-white">
                         <Shield className="h-8 w-8 text-blue-500" />
+                        <div>
                         <span className="text-xl tracking-wide uppercase">
-                            {user?.role === 'cnps' ? 'VERIF CNPS' : user?.role}
+                            {user?.role === 'cnps' ? 'DANAZ Pay' : user?.role}
+                            
                         </span>
+                        <br />
+                        <span className='text-sm font-light'>by B2i & Partners</span>
+                        </div>
                     </div>
                 )}
             </div>

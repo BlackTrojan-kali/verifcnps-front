@@ -1,18 +1,18 @@
 import { useState, useCallback } from 'react';
 import axiosInstance from '../../config/axios';
-import { Declaration, Bank } from '../../types'; // N'oubliez pas d'importer Bank
+import { Declaration, Bank } from '../../types';
 
 export interface Filters {
     search: string;
     status: string;
     start_date: string;
     end_date: string;
-    bank_id: string; // <-- NOUVEAU : On ajoute le filtre de la banque
+    bank_id: string; 
 }
 
 export const useSupervision = () => {
     const [declarations, setDeclarations] = useState<Declaration[]>([]);
-    const [banks, setBanks] = useState<Bank[]>([]); // <-- NOUVEAU : Pour stocker la liste des banques
+    const [banks, setBanks] = useState<Bank[]>([]); 
     const [isLoading, setIsLoading] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isActionLoading, setIsActionLoading] = useState(false);
@@ -20,10 +20,9 @@ export const useSupervision = () => {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [filters, setFilters] = useState<Filters>({
-        search: '', status: '', start_date: '', end_date: '', bank_id: '' // Initialisé à vide
+        search: '', status: '', start_date: '', end_date: '', bank_id: ''
     });
 
-    // Fonction pour récupérer les déclarations
     const fetchDeclarations = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -39,11 +38,9 @@ export const useSupervision = () => {
         }
     }, [page, filters]);
 
-    // <-- NOUVEAU : Fonction pour récupérer la liste des banques pour le filtre
     const fetchBanks = useCallback(async () => {
         try {
             const response = await axiosInstance.get('/cnps/banks');
-            // On suppose que Laravel renvoie { banks: [...] } ou directement le tableau
             setBanks(response.data.banks || response.data);
         } catch (error) {
             console.error("Erreur lors de la récupération des banques", error);
@@ -86,17 +83,79 @@ export const useSupervision = () => {
                     dec.id === id ? { ...dec, status: 'cnps_validated' } : dec
                 )
             );
+            return { success: true };
         } catch (error) {
             console.error("Erreur lors du rapprochement", error);
             alert("Une erreur est survenue lors de la validation du paiement.");
+            return { success: false };
         } finally {
             setIsActionLoading(false);
         }
     };
 
+    // ========================================================
+    // NOUVEAU : Fonction d'upload de la quittance officielle
+    // ========================================================
+    const uploadReceipt = async (id: number, file: File) => {
+        setIsActionLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('receipt_pdf', file);
+
+            const response = await axiosInstance.post(`/cnps/declarations/${id}/receipt`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // Met à jour la liste localement pour afficher que la quittance est bien là
+            setDeclarations(prevDeclarations => 
+                prevDeclarations.map(dec => 
+                    dec.id === id ? response.data.declaration : dec
+                )
+            );
+            
+            return { success: true, message: response.data.message };
+        } catch (error: any) {
+            console.error("Erreur lors de l'upload de la quittance", error);
+            return { 
+                success: false, 
+                message: error.response?.data?.message || "Erreur lors de l'envoi du document." 
+            };
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const downloadProof = async (id: number, reference: string) => {
+        try {
+            const response = await axiosInstance.get(`/declarations/${id}/download-proof`, {
+                responseType: 'blob', 
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Preuve_CNPS_${reference}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            return { success: true };
+        } catch (error: any) {
+            console.error("Erreur de téléchargement", error);
+            if (error.response?.status === 404) {
+                alert("Le fichier de preuve n'est pas disponible pour cette transaction.");
+            } else {
+                alert("Impossible de télécharger le document.");
+            }
+            return { success: false };
+        }
+    };
+
     return {
         declarations,
-        banks, // On l'exporte pour le menu déroulant
+        banks, 
         isLoading,
         filters,
         handleFilterChange,
@@ -106,8 +165,10 @@ export const useSupervision = () => {
         exportPdf,
         isExporting,
         fetchDeclarations,
-        fetchBanks, // On l'exporte pour le charger au démarrage
+        fetchBanks, 
         reconcilePayment,
-        isActionLoading
+        isActionLoading,
+        downloadProof,
+        uploadReceipt // <-- NOUVELLE FONCTION EXPORTÉE
     };
 };

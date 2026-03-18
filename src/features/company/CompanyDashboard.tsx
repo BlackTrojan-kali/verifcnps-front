@@ -10,14 +10,15 @@ import { Declaration } from '../../types';
 export const CompanyDashboard = () => {
     const { 
         declarations, activeDeclaration, banks, isLoading, isSubmitting, 
-        fetchDeclarations, fetchBanks, initiatePayment, editPayment 
+        fetchDeclarations, fetchBanks, initiatePayment, editPayment,
+        downloadProof // <-- 1. ON IMPORTE LA NOUVELLE FONCTION ICI
     } = useCompanyDashboard();
 
     // Gestion de la modale à 2 étapes
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [step, setStep] = useState<1 | 2>(1);
     
-    // NOUVEAU : État pour savoir si on crée ou si on modifie (suite à un rejet)
+    // État pour savoir si on crée ou si on modifie (suite à un rejet)
     const [editingDeclaration, setEditingDeclaration] = useState<Declaration | null>(null);
 
     // États du formulaire
@@ -29,6 +30,9 @@ export const CompanyDashboard = () => {
     
     // LECTURE DU MONTANT DEPUIS LE LOCALSTORAGE (Valeur envoyée par l'ERP)
     const amountToPay = localStorage.getItem('amountToPay') || "0";
+
+    // Variable pratique pour alléger les conditions dans le formulaire
+    const isMobileMoney = paymentMode === 'mobile_money' || paymentMode === 'orange_money';
 
     useEffect(() => {
         fetchDeclarations();
@@ -57,8 +61,12 @@ export const CompanyDashboard = () => {
 
     // Soumission du formulaire final
     const handleSubmitPayment = async () => {
-        if (!bankId || !reference) {
-            return setErrorMsg('Veuillez sélectionner une banque et saisir la référence.');
+        // VÉRIFICATIONS DYNAMIQUES
+        if (!isMobileMoney && !bankId) {
+            return setErrorMsg('Veuillez sélectionner une banque de destination.');
+        }
+        if (!reference) {
+            return setErrorMsg('Veuillez saisir la référence de la transaction.');
         }
 
         let result;
@@ -66,7 +74,7 @@ export const CompanyDashboard = () => {
         if (editingDeclaration) {
             // --- MODE MODIFICATION (Correction suite à un rejet) ---
             result = await editPayment(editingDeclaration.id, {
-                bank_id: bankId,
+                bank_id: isMobileMoney ? '' : bankId, // On envoie vide si MoMo
                 reference: reference,
                 amount: amountToPay,
                 payment_mode: paymentMode,
@@ -74,11 +82,11 @@ export const CompanyDashboard = () => {
             });
         } else {
             // --- MODE CRÉATION ---
-            if (!file && paymentMode !== 'mobile_money') {
+            if (!file && !isMobileMoney) {
                 return setErrorMsg('Le fichier de preuve est obligatoire pour ce mode de paiement.');
             }
             result = await initiatePayment({
-                bank_id: bankId,
+                bank_id: isMobileMoney ? '' : bankId, // On envoie vide si MoMo
                 reference: reference,
                 amount: amountToPay,
                 payment_mode: paymentMode,
@@ -96,7 +104,6 @@ export const CompanyDashboard = () => {
     // Déterminer l'état d'avancement pour la barre de progression
     const getProgressIndex = () => {
         if (!activeDeclaration) return -1;
-        // Si c'est rejeté, on le met en erreur (index spécial ou on le laisse à 1 pour montrer que ça a bloqué à la banque)
         if (activeDeclaration.status === 'rejected') return -2; 
         
         switch (activeDeclaration.status) {
@@ -133,7 +140,6 @@ export const CompanyDashboard = () => {
                 <h3 className="text-base font-bold text-slate-900 mb-8">Suivi du paiement en cours</h3>
                 
                 {progressIndex === -2 ? (
-                    // Affichage spécial si le paiement est rejeté
                     <div className="rounded-lg bg-red-50 p-6 text-center border border-red-100">
                         <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-3" />
                         <h4 className="text-lg font-bold text-red-800 mb-1">Paiement rejeté par la banque</h4>
@@ -147,7 +153,6 @@ export const CompanyDashboard = () => {
                         </button>
                     </div>
                 ) : (
-                    // Affichage normal de la progression
                     <div className="relative flex justify-between items-center max-w-3xl mx-auto">
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 w-full bg-slate-100 -z-10"></div>
                         <div 
@@ -222,7 +227,13 @@ export const CompanyDashboard = () => {
                                                     Corriger
                                                 </button>
                                             ) : (
-                                                <button disabled={dec.status !== 'cnps_validated'} className="text-blue-600 hover:text-blue-800 disabled:opacity-30 disabled:hover:text-blue-600 transition-colors">
+                                                // 2. ON ATTACHE LA FONCTION AU BOUTON DE TÉLÉCHARGEMENT ICI
+                                                <button 
+                                                    onClick={() => downloadProof(dec.id, dec.reference)}
+                                                    disabled={dec.status !== 'cnps_validated'} 
+                                                    className="text-blue-600 hover:text-blue-800 disabled:opacity-30 disabled:hover:text-blue-600 transition-colors"
+                                                    title="Télécharger la quittance"
+                                                >
                                                     <Download size={18} />
                                                 </button>
                                             )}
@@ -240,7 +251,6 @@ export const CompanyDashboard = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
                         
-                        {/* HEADER MODALE */}
                         <div className="flex items-center justify-between border-b border-slate-100 px-8 py-5 sticky top-0 bg-white z-10">
                             <h3 className="text-xl font-bold text-slate-900">
                                 {editingDeclaration ? 'Corriger la déclaration' : (step === 1 ? 'Choisissez votre mode de règlement' : 'Initier la transaction')}
@@ -256,13 +266,11 @@ export const CompanyDashboard = () => {
                                 <span className="text-xl font-bold text-slate-900">{Number(amountToPay).toLocaleString('fr-FR')} FCFA</span>
                             </div>
 
-                            {/* ÉTAPE 1 : CHOIX DU MODE (Uniquement visible si on crée une nouvelle déclaration et qu'on est à l'étape 1) */}
                             {step === 1 && !editingDeclaration && (
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    {/* SEULEMENT VIREMENT EN LIGNE ET MOBILE MONEY */}
                                     {[
                                         { id: 'virement', icon: CreditCard, label: 'Virement en ligne' },
-                                        { id: 'ordre_virement', icon: FileText, label: 'Ordre de Virement (Guichet)' },
-                                        { id: 'especes', icon: Banknote, label: 'Espèces (Guichet)' },
                                         { id: 'mobile_money', icon: Smartphone, label: 'Mobile Money (MTN / Orange)' },
                                     ].map((mode) => (
                                         <button
@@ -282,7 +290,6 @@ export const CompanyDashboard = () => {
                                 </div>
                             )}
 
-                            {/* ÉTAPE 2 : FORMULAIRE */}
                             {step === 2 && (
                                 <div className="space-y-6 animate-in slide-in-from-right-4">
                                     {errorMsg && (
@@ -292,24 +299,28 @@ export const CompanyDashboard = () => {
                                         </div>
                                     )}
 
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Banque de destination <span className="text-red-500">*</span></label>
-                                        <select 
-                                            value={bankId} 
-                                            onChange={(e) => setBankId(e.target.value)}
-                                            className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
-                                        >
-                                            <option value="">Choisir une banque...</option>
-                                            {banks.map(b => (
-                                                <option key={b.id} value={b.id}>{b.bank_name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    {/* LA BANQUE EST MASQUÉE SI C'EST MOBILE MONEY */}
+                                    {!isMobileMoney && (
+                                        <div>
+                                            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Banque de destination <span className="text-red-500">*</span></label>
+                                            <select 
+                                                value={bankId} 
+                                                onChange={(e) => setBankId(e.target.value)}
+                                                className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
+                                            >
+                                                <option value="">Choisir une banque...</option>
+                                                {banks.map(b => (
+                                                    <option key={b.id} value={b.id}>{b.bank_name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
 
-                                    {/* UPLOAD FICHIER */}
                                     <div>
                                         <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                                            Preuve de paiement (PDF) {paymentMode !== 'mobile_money' && !editingDeclaration && <span className="text-red-500">*</span>}
+                                            Preuve de paiement (PDF) 
+                                            {!isMobileMoney && !editingDeclaration && <span className="text-red-500"> *</span>}
+                                            {isMobileMoney && <span className="text-slate-400 font-normal ml-1">(Optionnel)</span>}
                                         </label>
                                         <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 transition-colors hover:bg-blue-50">
                                             <UploadCloud size={36} className="text-blue-500 mb-3" />
@@ -332,10 +343,13 @@ export const CompanyDashboard = () => {
                                     </div>
 
                                     <div>
-                                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Référence de la transaction <span className="text-red-500">*</span></label>
+                                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                                            {isMobileMoney ? 'ID de transaction (Reçu SMS)' : 'Référence de la transaction'} 
+                                            <span className="text-red-500"> *</span>
+                                        </label>
                                         <input 
                                             type="text" 
-                                            placeholder="Ex: VRT-MARS26-001"
+                                            placeholder={isMobileMoney ? "Ex: 1234567890" : "Ex: VRT-MARS26-001"}
                                             value={reference}
                                             onChange={(e) => setReference(e.target.value)}
                                             className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 uppercase font-mono"
@@ -343,7 +357,6 @@ export const CompanyDashboard = () => {
                                     </div>
 
                                     <div className="flex justify-between pt-6 border-t border-slate-100">
-                                        {/* Bouton retour caché si on est en mode édition (on ne peut pas changer le mode de paiement d'un rejet) */}
                                         {!editingDeclaration ? (
                                             <button 
                                                 onClick={() => setStep(1)} 
@@ -359,7 +372,7 @@ export const CompanyDashboard = () => {
                                             className="flex items-center gap-2 rounded-lg bg-blue-700 px-6 py-3 text-sm font-bold text-white shadow-md transition-colors hover:bg-blue-800 disabled:opacity-70"
                                         >
                                             {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : null}
-                                            {editingDeclaration ? 'Renvoyer la déclaration' : 'Transmettre à la banque'}
+                                            {editingDeclaration ? 'Renvoyer la déclaration' : (isMobileMoney ? 'Transmettre à la CNPS' : 'Transmettre à la banque')}
                                         </button>
                                     </div>
                                 </div>

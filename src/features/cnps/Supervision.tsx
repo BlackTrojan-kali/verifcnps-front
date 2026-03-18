@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Download, Eye, Loader2, CheckCircle, X, AlertTriangle, Building2 } from 'lucide-react';
+import { Search, Download, Eye, Loader2, CheckCircle, X, AlertTriangle, Building2, FileDown } from 'lucide-react';
 import { useSupervision } from './useSupervision';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Declaration } from '../../types';
@@ -8,7 +8,8 @@ export const Supervision = () => {
     const { 
         declarations, banks, isLoading, filters, handleFilterChange, 
         page, setPage, totalPages, exportPdf, isExporting,
-        fetchDeclarations, fetchBanks, reconcilePayment, isActionLoading
+        fetchDeclarations, fetchBanks, reconcilePayment, isActionLoading,
+        downloadProof // <-- 1. IMPORT DE LA FONCTION DE TÉLÉCHARGEMENT
     } = useSupervision();
 
     const [declarationToReconcile, setDeclarationToReconcile] = useState<Declaration | null>(null);
@@ -16,7 +17,7 @@ export const Supervision = () => {
     // On charge les déclarations ET la liste des banques au montage du composant
     useEffect(() => {
         fetchDeclarations();
-        fetchBanks(); // <-- Appel de la nouvelle fonction
+        fetchBanks();
     }, [fetchDeclarations, fetchBanks]);
 
     const handleConfirmReconciliation = async () => {
@@ -26,8 +27,19 @@ export const Supervision = () => {
         }
     };
 
+    // Helper pour formater le mode de paiement
+    const formatPaymentMode = (mode: string | null) => {
+        if (!mode) return '-';
+        if (mode === 'virement') return 'Virement en ligne';
+        if (mode === 'ordre_virement') return 'Ordre de virement';
+        if (mode === 'especes') return 'Espèces';
+        if (mode === 'mobile_money') return 'Mobile Money';
+        if (mode === 'orange_money') return 'Orange Money';
+        return mode.replace('_', ' ');
+    };
+
     return (
-        <div className="space-y-6 relative">
+        <div className="space-y-6 relative animate-in fade-in duration-300">
             
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
@@ -59,7 +71,7 @@ export const Supervision = () => {
                     />
                 </div>
 
-                {/* NOUVEAU : Filtre Banque */}
+                {/* Filtre Banque */}
                 <div className="relative min-w-[180px]">
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <select 
@@ -84,7 +96,7 @@ export const Supervision = () => {
                 >
                     <option value="">Tous les statuts</option>
                     <option value="submited">En attente Banque</option>
-                    <option value="bank_validated">Validé Banque</option>
+                    <option value="bank_validated">Validé Banque (À Rapprocher)</option>
                     <option value="cnps_validated">Rapproché (Terminé)</option>
                     <option value="rejected">Rejeté</option>
                 </select>
@@ -107,66 +119,85 @@ export const Supervision = () => {
                 </div>
             </div>
 
-            {/* LE TABLEAU DES DONNÉES (Inchangé) */}
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            {/* TABLEAU DES DONNÉES */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-200">
+                        <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-100">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Date</th>
-                                <th className="px-6 py-4 font-semibold">Entreprise</th>
-                                <th className="px-6 py-4 font-semibold">Banque</th>
-                                <th className="px-6 py-4 font-semibold">Montant</th>
-                                <th className="px-6 py-4 font-semibold">Statut</th>
-                                <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                                <th className="px-6 py-4">Date / Réf</th>
+                                <th className="px-6 py-4">Entreprise</th>
+                                <th className="px-6 py-4">Banque & Mode</th>
+                                <th className="px-6 py-4 text-right">Montant (FCFA)</th>
+                                <th className="px-6 py-4 text-center">Statut</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200">
+                        <tbody className="divide-y divide-slate-100">
                             {isLoading ? (
                                 <tr>
                                     <td colSpan={6} className="py-12 text-center text-slate-500">
                                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500 mb-2" />
-                                        Chargement des déclarations...
+                                        Chargement des données...
                                     </td>
                                 </tr>
                             ) : declarations.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="py-12 text-center text-slate-500">
-                                        Aucune déclaration ne correspond à vos filtres.
+                                    <td colSpan={6} className="py-16 text-center text-slate-500">
+                                        Aucune déclaration ne correspond à vos critères.
                                     </td>
                                 </tr>
                             ) : (
                                 declarations.map((dec) => (
                                     <tr key={dec.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {new Date(dec.created_at).toLocaleDateString('fr-FR')}
+                                            <div className="font-semibold text-slate-900">
+                                                {new Date(dec.period).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                                            </div>
+                                            <div className="text-xs text-slate-500 font-mono mt-0.5">
+                                                Réf: {dec.reference}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-900">{dec.company?.raison_sociale || 'N/A'}</div>
-                                            <div className="text-xs text-slate-500">NIU: {dec.company?.niu || 'N/A'}</div>
+                                            <div className="font-bold text-emerald-700">{dec.company?.raison_sociale || 'N/A'}</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">NIU: {dec.company?.niu || 'N/A'}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {dec.bank ? dec.bank.bank_name : <span className="text-slate-400">-</span>}
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-slate-900">{dec.bank?.bank_name || 'Direct (MoMo)'}</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">{formatPaymentMode(dec.payment_mode)}</div>
                                         </td>
-                                        <td className="px-6 py-4 font-semibold whitespace-nowrap">
-                                            {Number(dec.amount).toLocaleString('fr-FR')} FCFA
+                                        <td className="px-6 py-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                                            {Number(dec.amount).toLocaleString('fr-FR')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-6 py-4 text-center whitespace-nowrap">
                                             <StatusBadge status={dec.status} />
                                         </td>
-                                        <td className="px-6 py-4 text-right whitespace-nowrap space-x-2">
-                                            <button className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200">
-                                                <Eye size={14} /> Consulter
-                                            </button>
-                                            
-                                            {dec.status === 'bank_validated' && (
+                                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-2">
+                                                
+                                                {/* 2. BOUTON POUR TÉLÉCHARGER LA PREUVE PDF */}
                                                 <button 
-                                                    onClick={() => setDeclarationToReconcile(dec)}
-                                                    className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-200"
+                                                    onClick={() => downloadProof(dec.id, dec.reference)}
+                                                    className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                                                    title="Télécharger la preuve"
                                                 >
-                                                    <CheckCircle size={14} /> Rapprocher
+                                                    <FileDown size={14} /> Preuve
                                                 </button>
-                                            )}
+                                                
+                                                <button className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200">
+                                                    <Eye size={14} /> Voir
+                                                </button>
+                                                
+                                                {/* BOUTON RAPPROCHER QUI OUVRE VOTRE MODALE */}
+                                                {dec.status === 'bank_validated' && (
+                                                    <button 
+                                                        onClick={() => setDeclarationToReconcile(dec)}
+                                                        className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-200 ml-1"
+                                                    >
+                                                        <CheckCircle size={14} /> Rapprocher
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -175,14 +206,15 @@ export const Supervision = () => {
                     </table>
                 </div>
 
+                {/* PAGINATION */}
                 {!isLoading && totalPages > 1 && (
                     <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-3">
                         <span className="text-sm text-slate-500">
                             Page <span className="font-semibold text-slate-900">{page}</span> sur <span className="font-semibold text-slate-900">{totalPages}</span>
                         </span>
                         <div className="flex gap-2">
-                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 hover:bg-slate-50">Précédent</button>
-                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 hover:bg-slate-50">Suivant</button>
+                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 hover:bg-slate-50 transition-colors">Précédent</button>
+                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 hover:bg-slate-50 transition-colors">Suivant</button>
                         </div>
                     </div>
                 )}
@@ -218,7 +250,7 @@ export const Supervision = () => {
                                 </div>
                                 <div className="flex justify-between border-b border-slate-100 pb-2">
                                     <span className="font-medium text-slate-500">Banque ayant validé :</span>
-                                    <span className="font-semibold text-slate-900">{declarationToReconcile.bank?.bank_name}</span>
+                                    <span className="font-semibold text-slate-900">{declarationToReconcile.bank?.bank_name || 'Direct (Mobile Money)'}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-slate-100 pb-2">
                                     <span className="font-medium text-slate-500">Référence :</span>

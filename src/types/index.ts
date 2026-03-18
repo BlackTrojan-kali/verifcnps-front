@@ -72,6 +72,7 @@ export interface Declaration {
     payment_mode: PaymentMode | null;
     proof_path: string | null;
     status: DeclarationStatus;
+    receipt_path?: string | null;
     comment_reject: string | null;
     created_at: string;
     updated_at: string;

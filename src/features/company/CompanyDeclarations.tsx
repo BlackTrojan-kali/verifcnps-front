@@ -1,14 +1,15 @@
 import React, { useEffect } from 'react';
 import { Search, Building2, Download, Eye, Loader2, FileText } from 'lucide-react';
 import { useCompanyDashboard } from './useCompanyDashboard';
-import { StatusBadge } from '../../components/ui/StatusBadge'; // Assurez-vous d'avoir ce composant
+import { StatusBadge } from '../../components/ui/StatusBadge'; 
 
 export const CompanyDeclarations = () => {
     const { 
         declarations, banks, isLoading, 
         fetchDeclarations, fetchBanks,
         filters, handleFilterChange,
-        page, setPage, totalPages
+        page, setPage, totalPages,
+        downloadReceipt // <-- MISE À JOUR : On importe la fonction pour la quittance finale
     } = useCompanyDashboard();
 
     // Chargement initial
@@ -145,10 +146,13 @@ export const CompanyDeclarations = () => {
                                             <button className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200">
                                                 <Eye size={14} /> Voir
                                             </button>
+                                            
+                                            {/* MISE À JOUR : Appel de downloadReceipt et sécurité sur la présence du fichier */}
                                             <button 
-                                                disabled={dec.status !== 'cnps_validated'} 
+                                                onClick={() => downloadReceipt(dec.id, dec.reference)}
+                                                disabled={dec.status !== 'cnps_validated' || !dec.receipt_path} 
                                                 className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50 disabled:hover:bg-blue-50"
-                                                title={dec.status !== 'cnps_validated' ? 'Disponible après validation CNPS' : 'Télécharger la quittance'}
+                                                title={(!dec.receipt_path || dec.status !== 'cnps_validated') ? 'En attente de la quittance CNPS' : 'Télécharger la quittance officielle'}
                                             >
                                                 <Download size={14} /> Quittance
                                             </button>

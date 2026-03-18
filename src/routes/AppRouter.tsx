@@ -15,6 +15,8 @@ import { BankHistory } from '../features/bank/BankHistory';
 import { CompanySSOCallback } from '../features/auth/CompanySSOCallback';
 import { CompanyDashboard } from '../features/company/CompanyDashboard';
 import { CompanyDeclarations } from '../features/company/CompanyDeclarations';
+import { Quittances } from '../features/cnps/Quittances';
+import BankDashboard from '../features/bank/BankDashboard';
 
 // L'IMPORT CLÉ DE NOTRE GABARIT :
 
@@ -70,7 +72,7 @@ export const AppRouter = () => {
 
                     {/* --- ESPACE BANQUE --- */}
                     <Route element={<ProtectedRoute allowedRoles={['bank']} />}>
-                        <Route path="/bank" element={<PlaceholderDashboard title="Guichet Bancaire" />} />
+                        <Route path="/bank" element={<BankDashboard />} />
                         <Route path="/bank/history" element={<BankHistory />} />
                     </Route>
 
@@ -78,7 +80,7 @@ export const AppRouter = () => {
                     <Route element={<ProtectedRoute allowedRoles={['cnps']} />}>
                         <Route path="/cnps" element={<Supervision/>} />
                         <Route path="/cnps/reporting" element={<Reporting/>} />
-                        <Route path="/cnps/quittances" element={<PlaceholderDashboard title="Gestion des Quittances" />} />
+                        <Route path="/cnps/quittances" element={<Quittances />} />
                         <Route path="/cnps/banks" element={<ManageBanks/>} />
                         <Route path="/cnps/agents" element={<ManageAgents/>} />
                     </Route>
