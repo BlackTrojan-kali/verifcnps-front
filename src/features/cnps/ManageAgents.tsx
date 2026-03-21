@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Users, UserPlus, Search, Loader2, X, AlertCircle, CheckCircle2, Shield, Edit } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Users, UserPlus, Search, Loader2, X, AlertCircle, CheckCircle2, Edit, Shield } from 'lucide-react';
 import { useAdministration } from './useAdministration';
 import { CnpsAgent } from '../../types';
+import useAuthStore from '../../store/useAuthStore'; 
 
 export const ManageAgents = () => {
     const { 
-        agents, isLoadingAgents, fetchAgents, createAgent, updateAgent, isActionLoading 
+        agents, isLoadingAgents, fetchAgents, createAgent, updateAgent, toggleAdminStatus, isActionLoading 
     } = useAdministration();
+    
+    // Récupération de l'utilisateur connecté pour vérifier s'il est admin et son ID
+    const { user } = useAuthStore();
+    const isCurrentUserAdmin = user?.cnps?.is_admin === true;
+    const currentUserId = user?.id;
 
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,7 +26,11 @@ export const ManageAgents = () => {
     const [email, setEmail] = useState('');
     const [department, setDepartment] = useState('');
     const [password, setPassword] = useState('');
+    const [isAdmin, setIsAdmin] = useState(false); 
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+    // État temporaire pour afficher un loader sur le bouton switch pendant la requête
+    const [togglingAgentId, setTogglingAgentId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchAgents();
@@ -38,6 +48,7 @@ export const ManageAgents = () => {
         setEmail('');
         setDepartment('');
         setPassword('');
+        setIsAdmin(false); 
         setFeedback(null);
         setIsModalOpen(true);
     };
@@ -48,9 +59,20 @@ export const ManageAgents = () => {
         setFullName(agent.full_name);
         setDepartment(agent.department || '');
         setEmail(agent.user?.email || '');
-        setPassword(''); // On laisse toujours vide par sécurité lors d'une modification
+        setPassword(''); 
+        setIsAdmin(!!agent.is_admin); 
         setFeedback(null);
         setIsModalOpen(true);
+    };
+
+    const handleToggleAdmin = async (agentId: number) => {
+        setTogglingAgentId(agentId);
+        const result = await toggleAdminStatus(agentId);
+        if (!result.success) {
+            // Afficher une alerte ou un toast d'erreur si vous en avez un configuré
+            alert(result.message);
+        }
+        setTogglingAgentId(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -64,10 +86,11 @@ export const ManageAgents = () => {
             const payload: any = { 
                 matricule: matricule, 
                 full_name: fullName,
-                department: department
+                department: department,
+                is_admin: isAdmin
             };
             if (email) payload.email = email;
-            if (password) payload.password = password; // S'il a tapé un nouveau mot de passe
+            if (password) payload.password = password; 
             
             result = await updateAgent(editingAgent.id, payload);
         } else {
@@ -77,7 +100,8 @@ export const ManageAgents = () => {
                 full_name: fullName,
                 department: department,
                 email: email,
-                password: password
+                password: password,
+                is_admin: isAdmin 
             });
         }
 
@@ -98,15 +122,18 @@ export const ManageAgents = () => {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Agents CNPS</h1>
-                    <p className="text-sm text-slate-500 mt-1">Gérez les accès des agents internes à la plateforme.</p>
+                    <p className="text-sm text-slate-500 mt-1">Gérez les accès et les rôles des agents internes à la plateforme.</p>
                 </div>
-                <button 
-                    onClick={openCreateModal}
-                    className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-                >
-                    <UserPlus size={18} />
-                    Ajouter un agent
-                </button>
+                {/* Bouton Ajouter visible uniquement pour les admins */}
+                {isCurrentUserAdmin && (
+                    <button 
+                        onClick={openCreateModal}
+                        className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                    >
+                        <UserPlus size={18} />
+                        Ajouter un agent
+                    </button>
+                )}
             </div>
 
             {/* BARRE DE RECHERCHE */}
@@ -131,22 +158,23 @@ export const ManageAgents = () => {
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Matricule</th>
                                 <th className="px-6 py-4 font-semibold">Nom Complet</th>
+                                <th className="px-6 py-4 font-semibold">Rôle & Droits</th>
                                 <th className="px-6 py-4 font-semibold">Contact (Email)</th>
                                 <th className="px-6 py-4 font-semibold">Département</th>
-                                <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                                {isCurrentUserAdmin && <th className="px-6 py-4 text-right font-semibold">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {isLoadingAgents ? (
                                 <tr>
-                                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                                    <td colSpan={isCurrentUserAdmin ? 6 : 5} className="py-12 text-center text-slate-500">
                                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500 mb-2" />
                                         Chargement des agents...
                                     </td>
                                 </tr>
                             ) : filteredAgents.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                                    <td colSpan={isCurrentUserAdmin ? 6 : 5} className="py-12 text-center text-slate-500">
                                         <Users className="mx-auto h-12 w-12 text-slate-300 mb-3" />
                                         Aucun agent ne correspond à votre recherche.
                                     </td>
@@ -163,19 +191,62 @@ export const ManageAgents = () => {
                                             {agent.full_name}
                                         </td>
                                         <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                {/* Affichage du badge classique */}
+                                                {agent.is_admin ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
+                                                        <Shield size={12} /> Admin
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                                                        Agent
+                                                    </span>
+                                                )}
+
+                                                {/* Switch interactif : Affiché uniquement si l'utilisateur courant est admin ET ce n'est pas lui-même */}
+                                             
+                                                    <div className="flex items-center border-l border-slate-200 pl-3 ml-1">
+                                                        {togglingAgentId === agent.id ? (
+                                                            <Loader2 size={16} className="animate-spin text-blue-500" />
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                role="switch"
+                                                                aria-checked={agent.is_admin}
+                                                                onClick={() => handleToggleAdmin(agent.id)}
+                                                                title={agent.is_admin ? "Révoquer les droits" : "Promouvoir Admin"}
+                                                                className={`${
+                                                                    agent.is_admin ? 'bg-blue-600' : 'bg-slate-200'
+                                                                } relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2`}
+                                                            >
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className={`${
+                                                                        agent.is_admin ? 'translate-x-4' : 'translate-x-0'
+                                                                    } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                                                />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
                                             {agent.user?.email || <span className="text-slate-400 italic">Non renseigné</span>}
                                         </td>
                                         <td className="px-6 py-4">
                                             {agent.department || <span className="text-slate-400 italic">Non renseigné</span>}
                                         </td>
-                                        <td className="px-6 py-4 text-right whitespace-nowrap">
-                                            <button 
-                                                onClick={() => openEditModal(agent)}
-                                                className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-                                            >
-                                                <Edit size={14} /> Modifier
-                                            </button>
-                                        </td>
+                                        {isCurrentUserAdmin && (
+                                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                <button 
+                                                    onClick={() => openEditModal(agent)}
+                                                    className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                                                >
+                                                    <Edit size={14} /> Modifier
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}
@@ -242,6 +313,32 @@ export const ManageAgents = () => {
                                     />
                                 </div>
 
+                                {/* BLOC ADMINISTRATEUR DANS LA MODALE : On le masque s'il modifie son propre profil */}
+                                {(!editingAgent || editingAgent.user_id !== currentUserId) && (
+                                    <div className="mt-4 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4">
+                                        <div className="space-y-0.5">
+                                            <label className="text-sm font-medium text-slate-900">Droits d'administration</label>
+                                            <p className="text-xs text-slate-500">Donne l'accès complet à la gestion des utilisateurs.</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={isAdmin}
+                                            onClick={() => setIsAdmin(!isAdmin)}
+                                            className={`${
+                                                isAdmin ? 'bg-blue-600' : 'bg-slate-200'
+                                            } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2`}
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={`${
+                                                    isAdmin ? 'translate-x-5' : 'translate-x-0'
+                                                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                                            />
+                                        </button>
+                                    </div>
+                                )}
+
                                 <div className="border-t border-slate-100 pt-4 mt-4">
                                     <h4 className="text-sm font-semibold text-slate-800 mb-3">Informations de connexion</h4>
                                     <div className="space-y-4">
@@ -281,7 +378,7 @@ export const ManageAgents = () => {
                                 className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-70"
                             >
                                 {isActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                                {editingAgent ? 'Enregistrer les modifications' : 'Créer l\'agent'}
+                                {editingAgent ? 'Enregistrer' : 'Créer l\'agent'}
                             </button>
                         </div>
                     </div>

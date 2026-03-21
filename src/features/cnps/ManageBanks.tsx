@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { Building2, Plus, Search, Loader2, X, AlertCircle, CheckCircle2, Edit } from 'lucide-react';
 import { useAdministration } from './useAdministration';
 import { Bank } from '../../types';

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useLogin } from './useLogin';
 
@@ -46,4 +46,4 @@ export const CnpsLogin = () => {
             </div>
         </div>
     );
-};
+}; 

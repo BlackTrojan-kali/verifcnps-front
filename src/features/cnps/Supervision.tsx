@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Download, Eye, Loader2, CheckCircle, X, AlertTriangle, Building2, FileDown } from 'lucide-react';
 import { useSupervision } from './useSupervision';
 import { StatusBadge } from '../../components/ui/StatusBadge';

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { 
     Search, Landmark, FileDown, Eye, Loader2, 
-    RefreshCw, AlertCircle, Plus, CheckCircle, XCircle, Building2, UploadCloud,
+    RefreshCw, AlertCircle, Plus, CheckCircle, Building2, UploadCloud,
     X
 } from 'lucide-react';
 import { useBankHistory } from './useBankHistory';

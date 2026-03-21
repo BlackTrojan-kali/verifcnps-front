@@ -44,16 +44,18 @@ export interface Bank {
     address: string | null;  // AJOUTÉ : correspond à $fillable = ["address"]
     created_at?: string;
     updated_at?: string;
+    user?: User;
 }
 
 export interface CnpsAgent {
     id: number;
     user_id: number;
     matricule: string;
-    full_name: string;       // CORRIGÉ : correspond à $fillable = ["full_name"]
-    department: string | null; // AJOUTÉ : correspond à $fillable = ["department"]
+    full_name: string;
+    is_admin?: boolean;
+    department?: string | null;
+    user?: { email: string };
     created_at?: string;
-    updated_at?: string;
 }
 
 
@@ -80,6 +82,7 @@ export interface Declaration {
     // Relations jointes par le backend
     company?: Company;
     bank?: Bank;
+    order_reference?: string | null;
 }
 
 

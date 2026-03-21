@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, 
     BarChart3, 
     Receipt, 
     Settings, 
-    Building2, 
-    Users, 
     FileText, 
     History,
     ChevronLeft,
@@ -17,16 +15,28 @@ import useAuthStore from '../../store/useAuthStore';
 import { Dropdown } from './Dropdown';
 
 // ==========================================
-// 1. CONFIGURATION DES MENUS PAR RÔLE
+// 1. DÉFINITION DU TYPE POUR TYPESCRIPT
+// ==========================================
+type SidebarItem = {
+    title: string;
+    icon: JSX.Element;
+    path?: string;
+    children?: { label: string; path: string; }[];
+    requiresAdmin?: boolean; // <-- Ajout de la propriété pour protéger le menu
+};
+
+// ==========================================
+// 2. CONFIGURATION DES MENUS PAR RÔLE
 // ==========================================
 
-const CNPS_MENU = [
+const CNPS_MENU: SidebarItem[] = [
     { title: 'Supervision', path: '/cnps', icon: <LayoutDashboard size={20} /> },
     { title: 'Reporting & Stats', path: '/cnps/reporting', icon: <BarChart3 size={20} /> },
     { title: 'Quittances', path: '/cnps/quittances', icon: <Receipt size={20} /> },
     { 
         title: 'Administration', 
         icon: <Settings size={20} />, 
+        requiresAdmin: true, // <-- Ce menu est désormais réservé aux admins
         children: [
             { label: 'Gérer les Banques', path: '/cnps/banks' },
             { label: 'Gérer les Agents CNPS', path: '/cnps/agents' }
@@ -34,12 +44,12 @@ const CNPS_MENU = [
     }
 ];
 
-const BANK_MENU = [
+const BANK_MENU: SidebarItem[] = [
     { title: 'Tableau de bord', path: '/bank', icon: <LayoutDashboard size={20} /> },
     { title: 'Historique Dépôts', path: '/bank/history', icon: <History size={20} /> },
 ];
 
-const COMPANY_MENU = [
+const COMPANY_MENU: SidebarItem[] = [
     { title: 'Tableau de bord', path: '/company', icon: <LayoutDashboard size={20} /> },
     { title: 'Mes Déclarations', path: '/company/declarations', icon: <FileText size={20} /> },
 ];
@@ -52,10 +62,17 @@ export const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     // Fonction pour récupérer le bon menu selon le rôle
-    const getMenu = () => {
+    const getMenu = (): SidebarItem[] => {
         if (!user) return [];
         switch (user.role) {
-            case 'cnps': return CNPS_MENU;
+            case 'cnps':
+                // Vérifie si l'utilisateur CNPS est un administrateur
+                // (On gère le true booléen et le 1 si jamais la BDD renvoie un entier)
+        
+                
+                // On filtre le menu : on garde les items normaux, et on ne garde les items admin QUE si l'utilisateur est admin
+                return CNPS_MENU.filter(item => !item.requiresAdmin || user.cnps?.is_admin);
+                
             case 'bank': return BANK_MENU;
             case 'company': return COMPANY_MENU;
             default: return [];
@@ -119,7 +136,7 @@ export const Sidebar = () => {
                     return (
                         <NavLink
                             key={index}
-                            to={item.path}
+                            to={item.path || '#'}
                             // 'end' permet de ne pas surligner la racine quand on est sur une sous-page
                             end={item.path === `/${user?.role}`} 
                             title={isCollapsed ? item.title : ''}

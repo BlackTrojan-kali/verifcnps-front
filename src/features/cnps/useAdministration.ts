@@ -94,10 +94,26 @@ export const useAdministration = () => {
             setIsActionLoading(false);
         }
     };
-
+// NOUVELLE FONCTION : Modifier uniquement le statut d'administration
+    const toggleAdminStatus = async (id: number) => {
+        setIsActionLoading(true);
+        try {
+            const response = await axiosInstance.patch(`/cnps/agents/${id}/toggle-admin`);
+            const updatedAgent = response.data.agent || response.data;
+            
+            // On met à jour l'agent dans le tableau local pour refléter le changement instantanément
+            setAgents(prev => prev.map(a => a.id === id ? updatedAgent : a));
+            
+            return { success: true, message: response.data.message || "Statut modifié avec succès." };
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.message || "Erreur lors de la modification du statut." };
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
     return {
         banks, agents, isLoadingBanks, isLoadingAgents, isActionLoading,
         fetchBanks, createBank, updateBank,
-        fetchAgents, createAgent, updateAgent
+        fetchAgents, createAgent, updateAgent, toggleAdminStatus
     };
 };

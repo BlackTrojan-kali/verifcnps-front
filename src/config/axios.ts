@@ -4,13 +4,13 @@ import axios from 'axios';
 // On utilise les variables d'environnement de Vite (VITE_API_URL)
 // Si elle n'existe pas, on pointe par défaut sur le serveur local de Laravel
 const axiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+    baseURL: import.meta.env.VITE_API_URL,
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
+    withCredentials:true
 });
-
 // 2. Intercepteur de REQUÊTE (Avant que le message ne parte vers Laravel)
 axiosInstance.interceptors.request.use(
     (config) => {

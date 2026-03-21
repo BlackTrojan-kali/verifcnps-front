@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { DeclarationStatus } from '../../types';
 import { CheckCircle2, Clock, AlertCircle, XCircle, FileClock } from 'lucide-react';
 

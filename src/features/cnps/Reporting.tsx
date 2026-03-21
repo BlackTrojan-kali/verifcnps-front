@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Calendar, Download, TrendingUp, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useReporting } from './useReporting';
 import { 
@@ -107,7 +107,7 @@ export const Reporting = () => {
                                 <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} width={60} />
                                 <Tooltip 
                                     cursor={{ fill: '#f8fafc' }}
-                                    formatter={(value: number) => [`${value.toLocaleString('fr-FR')} FCFA`, 'Montant encaissé']}
+                                   formatter={(value: any) => [`${Number(value).toLocaleString('fr-FR')} FCFA`, 'Montant encaissé']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
                                 <Bar dataKey="amount" fill="#1e40af" radius={[4, 4, 0, 0]} maxBarSize={50} />
@@ -139,7 +139,7 @@ export const Reporting = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip 
-                                    formatter={(value: number) => [`${value}%`, 'Part']} 
+                                   formatter={(value: any) => [`${value}%`, 'Part']} 
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
                             </PieChart>

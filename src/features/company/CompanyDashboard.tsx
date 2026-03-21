@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import { 
-    CreditCard, Banknote, Smartphone, FileText, 
+    CreditCard,  Smartphone, 
     CheckCircle2, Circle, UploadCloud, Loader2, 
     X, Download, AlertCircle, RefreshCw 
 } from 'lucide-react';

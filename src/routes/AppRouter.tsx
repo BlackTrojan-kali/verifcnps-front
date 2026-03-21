@@ -20,13 +20,6 @@ import BankDashboard from '../features/bank/BankDashboard';
 
 // L'IMPORT CLÉ DE NOTRE GABARIT :
 
-// Pages temporaires pour voir le résultat visuel
-const PlaceholderDashboard = ({ title }: { title: string }) => (
-    <div className="rounded-lg bg-white p-10 text-center shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
-        <p className="mt-2 text-slate-500">Le contenu de cette page sera codé très bientôt !</p>
-    </div>
-);
 
 export const AppRouter = () => {
     const { token, setUser, setLoading, logout } = useAuthStore();

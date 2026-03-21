@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import  { useEffect } from 'react';
 import { Wallet, Clock, CheckCircle, XCircle, Loader2, Calendar } from 'lucide-react';
 import { useBankDashboard } from './useBankDashboard';
 import { 
@@ -129,7 +129,7 @@ export const BankDashboard = () => {
                                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
                                 <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} width={50} />
                                 <Tooltip 
-                                    formatter={(value: number) => [`${value.toLocaleString('fr-FR')} FCFA`, 'Montant']}
+                                   formatter={(value: any) => [`${Number(value).toLocaleString('fr-FR')} FCFA`, 'Montant']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                     labelStyle={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '4px' }}
                                 />
@@ -162,7 +162,7 @@ export const BankDashboard = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip 
-                                    formatter={(value: number) => [value, 'Dossiers']} 
+                                  formatter={(value: any) => [value, 'Dossiers']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
                             </PieChart>

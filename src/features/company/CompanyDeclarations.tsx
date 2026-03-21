@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Search, Building2, Download, Eye, Loader2, FileText } from 'lucide-react';
 import { useCompanyDashboard } from './useCompanyDashboard';
 import { StatusBadge } from '../../components/ui/StatusBadge'; 
