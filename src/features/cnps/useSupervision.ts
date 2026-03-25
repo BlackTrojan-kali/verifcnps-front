@@ -38,9 +38,12 @@ export const useSupervision = () => {
         }
     }, [page, filters]);
 
+    // Note : Puisque la CNPS ne gère plus les banques, cet endpoint doit pointer vers 
+    // une route globale (ex: /banks) accessible à tous pour remplir les menus déroulants.
     const fetchBanks = useCallback(async () => {
         try {
-            const response = await axiosInstance.get('/cnps/banks');
+            // Assurez-vous d'avoir une route générique GET /api/banks dans Laravel
+            const response = await axiosInstance.get('/banks'); 
             setBanks(response.data.banks || response.data);
         } catch (error) {
             console.error("Erreur lors de la récupération des banques", error);
@@ -94,8 +97,27 @@ export const useSupervision = () => {
     };
 
     // ========================================================
-    // NOUVEAU : Fonction d'upload de la quittance officielle
+    // NOUVEAU : Fonction pour rejeter un paiement (CNPS)
     // ========================================================
+    const rejectPayment = async (id: number, comment_reject: string) => {
+        setIsActionLoading(true);
+        try {
+            await axiosInstance.put(`/cnps/declarations/${id}/reject`, { comment_reject });
+            setDeclarations(prevDeclarations => 
+                prevDeclarations.map(dec => 
+                    dec.id === id ? { ...dec, status: 'rejected', comment_reject } : dec
+                )
+            );
+            return { success: true };
+        } catch (error: any) {
+            console.error("Erreur lors du rejet", error);
+            const message = error.response?.data?.message || "Une erreur est survenue lors du rejet.";
+            return { success: false, message };
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
     const uploadReceipt = async (id: number, file: File) => {
         setIsActionLoading(true);
         try {
@@ -167,8 +189,9 @@ export const useSupervision = () => {
         fetchDeclarations,
         fetchBanks, 
         reconcilePayment,
+        rejectPayment, // <-- NOUVELLE FONCTION EXPORTÉE
         isActionLoading,
         downloadProof,
-        uploadReceipt // <-- NOUVELLE FONCTION EXPORTÉE
+        uploadReceipt
     };
 };

@@ -6,20 +6,26 @@ import axiosInstance from '../config/axios';
 
 import { CnpsLogin } from '../features/auth/CnpsLogin';
 import { BankLogin } from '../features/auth/BankLogin';
+import SuperLogin from '../features/auth/SuperLogin';
+
 import DashboardLayout from '../layouts/DashBoardLayout';
 import { Supervision } from '../features/cnps/Supervision';
 import { Reporting } from '../features/cnps/Reporting';
-import { ManageBanks } from '../features/cnps/ManageBanks';
 import { ManageAgents } from '../features/cnps/ManageAgents';
+import { Quittances } from '../features/cnps/Quittances';
+// import { ManageBanks } from '../features/cnps/ManageBanks'; // Transféré au Superviseur
+
+import BankDashboard from '../features/bank/BankDashboard';
 import { BankHistory } from '../features/bank/BankHistory';
+import { BankAgents } from '../features/bank/BankAgents'; // <-- NOUVEL IMPORT
+
 import { CompanySSOCallback } from '../features/auth/CompanySSOCallback';
 import { CompanyDashboard } from '../features/company/CompanyDashboard';
 import { CompanyDeclarations } from '../features/company/CompanyDeclarations';
-import { Quittances } from '../features/cnps/Quittances';
-import BankDashboard from '../features/bank/BankDashboard';
+import SupervisorDashboard from '../features/supervisor/SupervisorDashboard';
+import SupervisorDeclarations from '../features/supervisor/SupervisorDeclarations';
 
-// L'IMPORT CLÉ DE NOTRE GABARIT :
-
+// import { SupervisorBanks } from '../features/supervisor/SupervisorBanks'; 
 
 export const AppRouter = () => {
     const { token, setUser, setLoading, logout } = useAuthStore();
@@ -45,10 +51,13 @@ export const AppRouter = () => {
             <Routes>
                 
                 {/* NOUVELLE ROUTE : Le point de chute depuis l'API externe */}
-         <Route path="/sso/callback" element={<CompanySSOCallback />} />
+                <Route path="/sso/callback" element={<CompanySSOCallback />} />
+                
                 {/* ROUTES PUBLIQUES (Sans le Layout, prennent tout l'écran) */}
                 <Route path="/login/cnps" element={<CnpsLogin />} />
                 <Route path="/login/bank" element={<BankLogin />} />
+                <Route path="/login/super" element={<SuperLogin />} />
+                
                 <Route path="/login" element={<Navigate to="/login/cnps" replace />} />
                 <Route path="/" element={<Navigate to="/login/cnps" replace />} />
 
@@ -67,6 +76,7 @@ export const AppRouter = () => {
                     <Route element={<ProtectedRoute allowedRoles={['bank']} />}>
                         <Route path="/bank" element={<BankDashboard />} />
                         <Route path="/bank/history" element={<BankHistory />} />
+                        <Route path="/bank/agents" element={<BankAgents />} /> {/* <-- NOUVELLE ROUTE */}
                     </Route>
 
                     {/* --- ESPACE CNPS --- */}
@@ -74,8 +84,15 @@ export const AppRouter = () => {
                         <Route path="/cnps" element={<Supervision/>} />
                         <Route path="/cnps/reporting" element={<Reporting/>} />
                         <Route path="/cnps/quittances" element={<Quittances />} />
-                        <Route path="/cnps/banks" element={<ManageBanks/>} />
                         <Route path="/cnps/agents" element={<ManageAgents/>} />
+                        {/* <Route path="/cnps/banks" element={<ManageBanks/>} /> */} 
+                    </Route>
+
+                    {/* --- ESPACE SUPERVISEUR --- */}
+                    <Route element={<ProtectedRoute allowedRoles={['supervisor']} />}>
+                        <Route path="/supervisor" element={<SupervisorDashboard />} />
+                        <Route path="/supervisor/declarations" element={<SupervisorDeclarations />} />
+                        {/* <Route path="/supervisor/banks" element={<SupervisorBanks />} /> */}
                     </Route>
                     
                 </Route>

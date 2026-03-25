@@ -27,7 +27,7 @@ export const useBankHistory = () => {
             const response = await axiosInstance.get('/bank/declarations', {
                 params: { page, ...filters }
             });
-            setDeclarations(response.data.data); // .data car paginate()
+            setDeclarations(response.data.data);
             setTotalPages(response.data.last_page);
         } catch (error) {
             console.error("Erreur lors de la récupération de l'historique", error);
@@ -39,6 +39,11 @@ export const useBankHistory = () => {
     const handleFilterChange = (key: keyof BankFilters, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
         setPage(1); 
+    };
+
+    const resetFilters = () => {
+        setFilters({ reference: '', status: '', start_date: '', end_date: '' });
+        setPage(1);
     };
 
     // ==========================================
@@ -91,7 +96,7 @@ export const useBankHistory = () => {
             const response = await axiosInstance.get('/bank/companies/search', { params: { niu } });
             return { success: true, company: response.data.company };
         } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Entreprise introuvable avec ce NIU." };
+            return { success: false, message: error.response?.data?.message || "Entreprise introuvable." };
         }
     };
 
@@ -99,23 +104,20 @@ export const useBankHistory = () => {
         setIsActionLoading(true);
         try {
             const formData = new FormData();
-            formData.append('company_id', data.company_id);
-            formData.append('reference', data.reference);
-            formData.append('payment_mode', data.payment_mode);
-            formData.append('amount', data.amount);
-            formData.append('period', data.period); 
-            if (data.order_reference) formData.append('order_reference', data.order_reference);
-            if (data.file) formData.append('proof_pdf', data.file);
+            Object.keys(data).forEach(key => {
+                if (data[key] !== null && data[key] !== undefined) {
+                    formData.append(key, data[key]);
+                }
+            });
 
             const response = await axiosInstance.post('/bank/counter-deposits', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             setDeclarations(prev => [response.data.declaration, ...prev]);
-
             return { success: true, message: response.data.message };
         } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Erreur lors de l'enregistrement." };
+            return { success: false, message: error.response?.data?.message || "Erreur d'enregistrement." };
         } finally {
             setIsActionLoading(false);
         }
@@ -125,102 +127,74 @@ export const useBankHistory = () => {
         setIsActionLoading(true);
         try {
             const formData = new FormData();
-            formData.append('company_id', data.company_id);
-            formData.append('reference', data.reference);
-            formData.append('payment_mode', data.payment_mode);
-            formData.append('amount', data.amount);
-            formData.append('period', data.period);
-            if (data.order_reference) formData.append('order_reference', data.order_reference);
-            if (data.file) formData.append('proof_pdf', data.file);
-            
+            Object.keys(data).forEach(key => {
+                if (data[key] !== null && data[key] !== undefined) {
+                    formData.append(key, data[key]);
+                }
+            });
             formData.append('_method', 'PUT');
 
             const response = await axiosInstance.post(`/bank/counter-deposits/${id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            setDeclarations(prev => prev.map(dec => 
-                dec.id === id ? response.data.declaration : dec
-            ));
-
+            setDeclarations(prev => prev.map(dec => dec.id === id ? response.data.declaration : dec));
             return { success: true, message: response.data.message };
         } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Erreur lors de la modification." };
+            return { success: false, message: error.response?.data?.message || "Erreur de modification." };
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const deleteCounterDeposit = async (id: number) => {
+        setIsActionLoading(true);
+        try {
+            await axiosInstance.delete(`/bank/counter-deposits/${id}`);
+            setDeclarations(prev => prev.filter(dec => dec.id !== id));
+            return { success: true, message: "Dépôt supprimé avec succès." };
+        } catch (error: any) {
+            return { success: false, message: error.response?.data?.message || "Erreur lors de la suppression." };
         } finally {
             setIsActionLoading(false);
         }
     };
 
     // ========================================================
-    // TÉLÉCHARGEMENT DE LA PREUVE (Uploadée par l'entreprise/guichet)
+    // TÉLÉCHARGEMENTS (DOCUMENTS)
     // ========================================================
-    const downloadProof = async (id: number, reference: string) => {
-        try {
-            const response = await axiosInstance.get(`/declarations/${id}/download-proof`, {
-                responseType: 'blob', 
-            });
 
+    const downloadFile = async (endpoint: string, filename: string) => {
+        try {
+            const response = await axiosInstance.get(endpoint, { responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Preuve_Banque_${reference}.pdf`);
+            link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
-            
-            link.parentNode?.removeChild(link);
+            link.remove();
             window.URL.revokeObjectURL(url);
-            
             return { success: true };
         } catch (error: any) {
-            console.error("Erreur de téléchargement", error);
-            if (error.response?.status === 404) {
-                alert("Le fichier de preuve n'est pas disponible pour cette transaction.");
-            } else {
-                alert("Impossible de télécharger le document.");
-            }
-            return { success: false };
+            const message = error.response?.status === 404 ? "Fichier introuvable." : "Erreur de téléchargement.";
+            return { success: false, message };
         }
     };
 
-    // ========================================================
-    // NOUVEAU : TÉLÉCHARGEMENT DE LA QUITTANCE (Délivrée par CNPS)
-    // ========================================================
-    const downloadReceipt = async (id: number, reference: string) => {
-        try {
-            const response = await axiosInstance.get(`/declarations/${id}/download-receipt`, {
-                responseType: 'blob', 
-            });
+    const downloadProof = (id: number, ref: string) => 
+        downloadFile(`/declarations/${id}/download-proof`, `Preuve_Banque_${ref}.pdf`);
 
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Quittance_CNPS_${reference}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(url);
-            
-            return { success: true };
-        } catch (error: any) {
-            console.error("Erreur de téléchargement de la quittance", error);
-            if (error.response?.status === 404) {
-                alert("La quittance officielle n'a pas encore été rattachée par la CNPS.");
-            } else {
-                alert("Impossible de télécharger la quittance.");
-            }
-            return { success: false };
-        }
-    };
+    const downloadReceipt = (id: number, ref: string) => 
+        downloadFile(`/declarations/${id}/download-receipt`, `Quittance_CNPS_${ref}.pdf`);
 
     return {
         declarations, isLoading, isActionLoading,
         page, setPage, totalPages,
-        filters, handleFilterChange,
+        filters, handleFilterChange, resetFilters,
         fetchDeclarations, 
         validatePayment, rejectPayment,
-        searchCompany, createCounterDeposit, updateCounterDeposit,
-        downloadProof,
-        downloadReceipt // <-- N'OUBLIEZ PAS L'EXPORT ICI
+        searchCompany, createCounterDeposit, updateCounterDeposit, deleteCounterDeposit,
+        downloadProof, downloadReceipt 
     };
 };

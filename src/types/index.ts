@@ -2,7 +2,8 @@
 // 1. TYPES LITTÉRAUX (Pour une sécurité absolue)
 // ====================================================
 
-export type UserRole = 'company' | 'bank' | 'cnps';
+// AJOUTÉ : Le rôle 'supervisor'
+export type UserRole = 'company' | 'bank' | 'cnps' | 'supervisor';
 
 export type PaymentMode = 'virement' | 'especes' | 'ordre_virement' | 'mobile_money' | 'orange_money';
 
@@ -23,6 +24,7 @@ export interface User {
     company?: Company;
     bank?: Bank;
     cnps?: CnpsAgent;
+    supervisor?: Supervisor; // AJOUTÉ : Relation vers le superviseur
 }
 
 export interface Company {
@@ -39,9 +41,10 @@ export interface Company {
 export interface Bank {
     id: number;
     user_id: number;
-    bank_code: string;       // CORRIGÉ : correspond à $fillable = ["bank_code"]
-    bank_name: string;       // CORRIGÉ : correspond à $fillable = ["bank_name"]
-    address: string | null;  // AJOUTÉ : correspond à $fillable = ["address"]
+    bank_code: string;       
+    bank_name: string;       
+    address: string | null;  
+    is_admin?: boolean;      // AJOUTÉ : Pour différencier le chef d'agence d'un guichetier
     created_at?: string;
     updated_at?: string;
     user?: User;
@@ -56,6 +59,17 @@ export interface CnpsAgent {
     department?: string | null;
     user?: { email: string };
     created_at?: string;
+}
+
+// AJOUTÉ : Nouvelle interface pour le Superviseur
+export interface Supervisor {
+    id: number;
+    user_id: number;
+    supervisor_name: string;
+    is_admin: boolean;
+    created_at?: string;
+    updated_at?: string;
+    user?: User;
 }
 
 

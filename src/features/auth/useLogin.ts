@@ -27,7 +27,16 @@ export const useLogin = (expectedRole: UserRole) => {
 
             // Vérification du rôle
             if (user.role !== expectedRole) {
-                const roleName = expectedRole === 'cnps' ? 'agents de la CNPS' : 'partenaires bancaires';
+                // Utilisation d'un objet pour mapper facilement les rôles vers du texte lisible
+                const roleNames: Record<string, string> = {
+                    cnps: 'agents de la CNPS',
+                    bank: 'partenaires bancaires',
+                    supervisor: 'superviseurs',
+                    company: 'entreprises' // Ajouté au cas où vous en auriez besoin plus tard
+                };
+                
+                const roleName = roleNames[expectedRole as string] || expectedRole;
+                
                 setError(`Accès refusé. Ce portail est strictement réservé aux ${roleName}.`);
                 setIsLoading(false);
                 return;

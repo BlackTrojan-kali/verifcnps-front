@@ -1,61 +1,16 @@
 import { useState, useCallback } from 'react';
 import axiosInstance from '../../config/axios';
-import { Bank, CnpsAgent } from '../../types';
+import { CnpsAgent } from '../../types';
 
 export const useAdministration = () => {
-    const [banks, setBanks] = useState<Bank[]>([]);
     const [agents, setAgents] = useState<CnpsAgent[]>([]);
-    
-    const [isLoadingBanks, setIsLoadingBanks] = useState(false);
     const [isLoadingAgents, setIsLoadingAgents] = useState(false);
     const [isActionLoading, setIsActionLoading] = useState(false);
 
     // ==========================================
-    // 1. BANQUES
+    // GESTION DES AGENTS CNPS
     // ==========================================
-    const fetchBanks = useCallback(async () => {
-        setIsLoadingBanks(true);
-        try {
-            const response = await axiosInstance.get('/cnps/banks');
-            setBanks(response.data.banks || response.data);
-        } catch (error) {
-            console.error("Erreur", error);
-        } finally {
-            setIsLoadingBanks(false);
-        }
-    }, []);
-
-    const createBank = async (bankData: any) => {
-        setIsActionLoading(true);
-        try {
-            const response = await axiosInstance.post('/cnps/banks', bankData);
-            setBanks(prev => [response.data.bank || response.data, ...prev]);
-            return { success: true, message: "Banque créée avec succès." };
-        } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Erreur lors de la création." };
-        } finally {
-            setIsActionLoading(false);
-        }
-    };
-
-    const updateBank = async (id: number, bankData: any) => {
-        setIsActionLoading(true);
-        try {
-            const response = await axiosInstance.put(`/cnps/banks/${id}`, bankData);
-            const updatedBank = response.data.bank || response.data;
-            // Mise à jour optimiste du tableau
-            setBanks(prev => prev.map(b => b.id === id ? updatedBank : b));
-            return { success: true, message: "Banque modifiée avec succès." };
-        } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Erreur lors de la modification." };
-        } finally {
-            setIsActionLoading(false);
-        }
-    };
-
-    // ==========================================
-    // 2. AGENTS CNPS
-    // ==========================================
+    
     const fetchAgents = useCallback(async () => {
         setIsLoadingAgents(true);
         try {
@@ -81,20 +36,22 @@ export const useAdministration = () => {
         }
     };
 
-    const updateAgent = async (id: number, agentData: any) => {
+    // NOUVELLE FONCTION : Spécifique pour la réinitialisation du mot de passe
+    const updateAgentPassword = async (id: number, newPassword: string) => {
         setIsActionLoading(true);
         try {
-            const response = await axiosInstance.put(`/cnps/agents/${id}`, agentData);
-            const updatedAgent = response.data.agent || response.data;
-            setAgents(prev => prev.map(a => a.id === id ? updatedAgent : a));
-            return { success: true, message: "Agent modifié avec succès." };
+            const response = await axiosInstance.patch(`/cnps/agents/${id}/password`, { 
+                password: newPassword 
+            });
+            return { success: true, message: response.data.message || "Mot de passe modifié avec succès." };
         } catch (error: any) {
-            return { success: false, message: error.response?.data?.message || "Erreur lors de la modification." };
+            return { success: false, message: error.response?.data?.message || "Erreur lors de la modification du mot de passe." };
         } finally {
             setIsActionLoading(false);
         }
     };
-// NOUVELLE FONCTION : Modifier uniquement le statut d'administration
+
+    // Modifier uniquement le statut d'administration
     const toggleAdminStatus = async (id: number) => {
         setIsActionLoading(true);
         try {
@@ -111,9 +68,14 @@ export const useAdministration = () => {
             setIsActionLoading(false);
         }
     };
+
     return {
-        banks, agents, isLoadingBanks, isLoadingAgents, isActionLoading,
-        fetchBanks, createBank, updateBank,
-        fetchAgents, createAgent, updateAgent, toggleAdminStatus
+        agents, 
+        isLoadingAgents, 
+        isActionLoading,
+        fetchAgents, 
+        createAgent, 
+        updateAgentPassword, 
+        toggleAdminStatus
     };
 };

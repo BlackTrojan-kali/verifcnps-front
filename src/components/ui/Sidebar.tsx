@@ -9,7 +9,9 @@ import {
     History,
     ChevronLeft,
     ChevronRight,
-    Shield
+    Shield,
+    Building2, // Ajout d'une icône pour les banques
+    Users      // Ajout d'une icône pour les utilisateurs
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
 import { Dropdown } from './Dropdown';
@@ -36,10 +38,23 @@ const CNPS_MENU: SidebarItem[] = [
     { 
         title: 'Administration', 
         icon: <Settings size={20} />, 
-        requiresAdmin: true, // <-- Ce menu est désormais réservé aux admins
+        requiresAdmin: true, // <-- Réservé aux admins CNPS
         children: [
-            { label: 'Gérer les Banques', path: '/cnps/banks' },
             { label: 'Gérer les Agents CNPS', path: '/cnps/agents' }
+            // Note: Gérer les banques a été déplacé chez le superviseur
+        ] 
+    }
+];
+
+const SUPERVISOR_MENU: SidebarItem[] = [
+    { title: 'Tableau de bord global', path: '/supervisor', icon: <LayoutDashboard size={20} /> },
+    { title: 'Toutes les déclarations', path: '/supervisor/declarations', icon: <FileText size={20} /> },
+    { 
+        title: 'Administration Système', 
+        icon: <Settings size={20} />, 
+        children: [
+            { label: 'Gérer les Banques', path: '/supervisor/banks' },
+            // Vous pourrez ajouter d'autres éléments d'administration globale ici plus tard
         ] 
     }
 ];
@@ -47,6 +62,14 @@ const CNPS_MENU: SidebarItem[] = [
 const BANK_MENU: SidebarItem[] = [
     { title: 'Tableau de bord', path: '/bank', icon: <LayoutDashboard size={20} /> },
     { title: 'Historique Dépôts', path: '/bank/history', icon: <History size={20} /> },
+    { 
+        title: 'Gestion Agence', 
+        icon: <Users size={20} />, 
+        requiresAdmin: true, // <-- Réservé au chef d'agence
+        children: [
+            { label: 'Mes Guichetiers', path: '/bank/agents' }
+        ] 
+    }
 ];
 
 const COMPANY_MENU: SidebarItem[] = [
@@ -65,16 +88,20 @@ export const Sidebar = () => {
     const getMenu = (): SidebarItem[] => {
         if (!user) return [];
         switch (user.role) {
+            case 'supervisor':
+                return SUPERVISOR_MENU;
+
             case 'cnps':
-                // Vérifie si l'utilisateur CNPS est un administrateur
-                // (On gère le true booléen et le 1 si jamais la BDD renvoie un entier)
-        
-                
                 // On filtre le menu : on garde les items normaux, et on ne garde les items admin QUE si l'utilisateur est admin
                 return CNPS_MENU.filter(item => !item.requiresAdmin || user.cnps?.is_admin);
                 
-            case 'bank': return BANK_MENU;
-            case 'company': return COMPANY_MENU;
+            case 'bank': 
+                // Idem pour la banque (chef d'agence vs guichetier)
+                return BANK_MENU.filter(item => !item.requiresAdmin || user.bank?.is_admin);
+
+            case 'company': 
+                return COMPANY_MENU;
+                
             default: return [];
         }
     };
@@ -97,7 +124,6 @@ export const Sidebar = () => {
                         <div>
                         <span className="text-xl tracking-wide uppercase">
                             {user?.role === 'cnps' ? 'DANAZ Pay' : user?.role}
-                            
                         </span>
                         <br />
                         <span className='text-sm font-light'>by B2i & Partners</span>

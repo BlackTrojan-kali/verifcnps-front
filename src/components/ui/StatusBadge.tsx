@@ -12,7 +12,7 @@ export const StatusBadge = ({ status }: StatusBadgeProps) => {
         initiated: { color: 'bg-slate-100 text-slate-700 border-slate-200', icon: FileClock, label: 'Initié' },
         submited: { color: 'bg-blue-50 text-blue-700 border-blue-200', icon: Clock, label: 'Soumis (Attente Banque)' },
         bank_validated: { color: 'bg-orange-50 text-orange-700 border-orange-200', icon: AlertCircle, label: 'Validé Banque (Attente CNPS)' },
-        cnps_validated: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'Rapproché' },
+        cnps_validated: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'Encaissé' },
         rejected: { color: 'bg-red-50 text-red-700 border-red-200', icon: XCircle, label: 'Rejeté' }
     };
 
