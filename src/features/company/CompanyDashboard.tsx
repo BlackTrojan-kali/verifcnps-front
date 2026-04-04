@@ -2,7 +2,7 @@ import  { useEffect, useState } from 'react';
 import { 
     CreditCard,  Smartphone, 
     CheckCircle2, Circle, UploadCloud, Loader2, 
-    X, Download, AlertCircle, RefreshCw 
+    X, AlertCircle, RefreshCw, Edit2
 } from 'lucide-react';
 import { useCompanyDashboard } from './useCompanyDashboard';
 import { Declaration } from '../../types';
@@ -10,8 +10,7 @@ import { Declaration } from '../../types';
 export const CompanyDashboard = () => {
     const { 
         declarations, activeDeclaration, banks, isLoading, isSubmitting, 
-        fetchDeclarations, fetchBanks, initiatePayment, editPayment,
-        downloadProof // <-- 1. ON IMPORTE LA NOUVELLE FONCTION ICI
+        fetchDeclarations, fetchBanks, initiatePayment, editPayment
     } = useCompanyDashboard();
 
     // Gestion de la modale à 2 étapes
@@ -25,11 +24,12 @@ export const CompanyDashboard = () => {
     const [paymentMode, setPaymentMode] = useState('');
     const [bankId, setBankId] = useState('');
     const [reference, setReference] = useState('');
+    const [mobileReference, setMobileReference] = useState(''); // <-- NOUVEAU
     const [file, setFile] = useState<File | null>(null);
     const [errorMsg, setErrorMsg] = useState('');
     
-    // LECTURE DU MONTANT DEPUIS LE LOCALSTORAGE (Valeur envoyée par l'ERP)
-    const amountToPay = localStorage.getItem('amountToPay') || "0";
+    // Transformation en variable d'état pour permettre la modification
+    const [amountToPay, setAmountToPay] = useState(localStorage.getItem('amountToPay') || "0");
 
     // Variable pratique pour alléger les conditions dans le formulaire
     const isMobileMoney = paymentMode === 'mobile_money' || paymentMode === 'orange_money';
@@ -46,6 +46,7 @@ export const CompanyDashboard = () => {
             setPaymentMode(declarationToEdit.payment_mode || '');
             setBankId(declarationToEdit.bank_id?.toString() || '');
             setReference(declarationToEdit.reference || '');
+            setMobileReference(declarationToEdit.mobile_reference || '');
             setStep(2); // On passe directement au formulaire si on corrige
         } else {
             setEditingDeclaration(null);
@@ -53,6 +54,7 @@ export const CompanyDashboard = () => {
             setPaymentMode('');
             setBankId('');
             setReference('');
+            setMobileReference('');
         }
         setFile(null);
         setErrorMsg('');
@@ -62,36 +64,27 @@ export const CompanyDashboard = () => {
     // Soumission du formulaire final
     const handleSubmitPayment = async () => {
         // VÉRIFICATIONS DYNAMIQUES
-        if (!isMobileMoney && !bankId) {
-            return setErrorMsg('Veuillez sélectionner une banque de destination.');
+        if (!isMobileMoney) {
+            if (!bankId) return setErrorMsg('Veuillez sélectionner une banque de destination.');
+            if (!reference && !editingDeclaration) return setErrorMsg('Veuillez saisir la référence du paiement.');
+        } else {
+            if (!mobileReference && !editingDeclaration) return setErrorMsg('Veuillez saisir la référence de la transaction Mobile Money.');
         }
-        if (!reference) {
-            return setErrorMsg('Veuillez saisir la référence de la transaction.');
-        }
+
+        const payload = {
+            bank_id: isMobileMoney ? '' : bankId,
+            amount: amountToPay,
+            payment_mode: paymentMode,
+            reference: isMobileMoney ? '' : reference,
+            mobile_reference: isMobileMoney ? mobileReference : '',
+            file: isMobileMoney ? null : file,
+        };
 
         let result;
-
         if (editingDeclaration) {
-            // --- MODE MODIFICATION (Correction suite à un rejet) ---
-            result = await editPayment(editingDeclaration.id, {
-                bank_id: isMobileMoney ? '' : bankId, // On envoie vide si MoMo
-                reference: reference,
-                amount: amountToPay,
-                payment_mode: paymentMode,
-                file: file
-            });
+            result = await editPayment(editingDeclaration.id, payload);
         } else {
-            // --- MODE CRÉATION ---
-            if (!file && !isMobileMoney) {
-                return setErrorMsg('Le fichier de preuve est obligatoire pour ce mode de paiement.');
-            }
-            result = await initiatePayment({
-                bank_id: isMobileMoney ? '' : bankId, // On envoie vide si MoMo
-                reference: reference,
-                amount: amountToPay,
-                payment_mode: paymentMode,
-                file: file
-            });
+            result = await initiatePayment(payload);
         }
 
         if (result.success) {
@@ -107,7 +100,6 @@ export const CompanyDashboard = () => {
         if (activeDeclaration.status === 'rejected') return -2; 
         
         switch (activeDeclaration.status) {
-            case 'initiated': return 0;
             case 'submited': return 1;
             case 'bank_validated': return 2;
             case 'cnps_validated': return 3;
@@ -119,17 +111,29 @@ export const CompanyDashboard = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-300 relative">
             
-            {/* EN-TÊTE : Montant à payer */}
+            {/* EN-TÊTE : Montant à payer (MAINTENANT MODIFIABLE) */}
             <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
                 <div>
                     <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Cotisation du mois en cours à régler</h2>
-                    <div className="mt-2 text-4xl font-bold text-slate-900">
-                        {Number(amountToPay).toLocaleString('fr-FR')} <span className="text-lg text-slate-400 font-medium">FCFA</span>
+                    <div className="mt-2 flex items-center gap-3">
+                        <input
+                            type="number"
+                            value={amountToPay}
+                            onChange={(e) => {
+                                setAmountToPay(e.target.value);
+                                localStorage.setItem('amountToPay', e.target.value); 
+                            }}
+                            className="text-4xl font-bold text-slate-900 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 rounded-lg px-4 py-2 w-[200px] transition-all"
+                            min="0"
+                        />
+                        <span className="text-lg text-slate-400 font-medium">FCFA</span>
+                        <Edit2 size={18} className="text-slate-300 ml-2" />
                     </div>
+                    <p className="text-xs text-slate-400 mt-2 italic">Vous pouvez modifier ce montant si nécessaire avant de payer.</p>
                 </div>
                 <button 
                     onClick={() => openPaymentModal()}
-                    className="rounded-lg bg-blue-700 px-8 py-4 text-lg font-bold text-white shadow-md transition-all hover:bg-blue-800 hover:shadow-lg active:scale-95"
+                    className="rounded-lg bg-blue-700 px-8 py-4 text-lg font-bold text-white shadow-md transition-all hover:bg-blue-800 hover:shadow-lg active:scale-95 whitespace-nowrap"
                 >
                     Procéder au paiement
                 </button>
@@ -161,10 +165,9 @@ export const CompanyDashboard = () => {
                         ></div>
 
                         {[
-                            { label: 'Avis Reçu', idx: 0 },
                             { label: 'Transmis Banque', idx: 1 },
                             { label: 'Validé Banque', idx: 2 },
-                            { label: 'Rapproché CNPS', idx: 3 }
+                            { label: 'Rapproché', idx: 3 }
                         ].map((step, idx) => {
                             const isCompleted = progressIndex >= idx;
                             const isCurrent = progressIndex === idx;
@@ -184,66 +187,6 @@ export const CompanyDashboard = () => {
                 {!activeDeclaration && (
                     <p className="text-center text-sm text-slate-400 mt-6 italic">Aucun paiement en cours de traitement.</p>
                 )}
-            </div>
-
-            {/* TABLEAU DES QUITTANCES */}
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-slate-100 p-6">
-                    <h3 className="text-base font-bold text-slate-900">Dernières Quittances</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 text-xs font-semibold text-slate-500">
-                            <tr>
-                                <th className="px-6 py-4">Période</th>
-                                <th className="px-6 py-4">Référence Unique</th>
-                                <th className="px-6 py-4">Montant</th>
-                                <th className="px-6 py-4">Statut</th>
-                                <th className="px-6 py-4 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {isLoading ? (
-                                <tr><td colSpan={5} className="py-8 text-center"><Loader2 className="mx-auto animate-spin text-slate-400" /></td></tr>
-                            ) : declarations.length === 0 ? (
-                                <tr><td colSpan={5} className="py-8 text-center text-slate-400">Aucun historique de paiement.</td></tr>
-                            ) : (
-                                declarations.map((dec) => (
-                                    <tr key={dec.id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4 font-medium">{new Date(dec.period).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</td>
-                                        <td className="px-6 py-4 font-mono text-slate-500">{dec.reference}</td>
-                                        <td className="px-6 py-4 font-bold">{Number(dec.amount).toLocaleString('fr-FR')} FCFA</td>
-                                        <td className="px-6 py-4">
-                                            {dec.status === 'cnps_validated' && <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">Terminé</span>}
-                                            {dec.status === 'rejected' && <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800">Rejeté</span>}
-                                            {['initiated', 'submited', 'bank_validated'].includes(dec.status) && <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800">En cours</span>}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {dec.status === 'rejected' ? (
-                                                <button 
-                                                    onClick={() => openPaymentModal(dec)}
-                                                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-                                                >
-                                                    Corriger
-                                                </button>
-                                            ) : (
-                                                // 2. ON ATTACHE LA FONCTION AU BOUTON DE TÉLÉCHARGEMENT ICI
-                                                <button 
-                                                    onClick={() => downloadProof(dec.id, dec.reference)}
-                                                    disabled={dec.status !== 'cnps_validated'} 
-                                                    className="text-blue-600 hover:text-blue-800 disabled:opacity-30 disabled:hover:text-blue-600 transition-colors"
-                                                    title="Télécharger la quittance"
-                                                >
-                                                    <Download size={18} />
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
             </div>
 
             {/* MODALE DE PAIEMENT / CORRECTION (Multi-step) */}
@@ -268,7 +211,6 @@ export const CompanyDashboard = () => {
 
                             {step === 1 && !editingDeclaration && (
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                    {/* SEULEMENT VIREMENT EN LIGNE ET MOBILE MONEY */}
                                     {[
                                         { id: 'virement', icon: CreditCard, label: 'Virement en ligne' },
                                         { id: 'mobile_money', icon: Smartphone, label: 'Mobile Money (MTN / Orange)' },
@@ -299,62 +241,65 @@ export const CompanyDashboard = () => {
                                         </div>
                                     )}
 
-                                    {/* LA BANQUE EST MASQUÉE SI C'EST MOBILE MONEY */}
-                                    {!isMobileMoney && (
+                                    {!isMobileMoney ? (
+                                        <>
+                                            <div>
+                                                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Banque de destination <span className="text-red-500">*</span></label>
+                                                <select 
+                                                    value={bankId} 
+                                                    onChange={(e) => setBankId(e.target.value)}
+                                                    className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
+                                                >
+                                                    <option value="">Choisir une banque...</option>
+                                                    {banks.map(b => (
+                                                        <option key={b.id} value={b.id}>{b.bank_name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Référence du virement <span className="text-red-500">*</span></label>
+                                                <input 
+                                                    type="text" 
+                                                    value={reference} 
+                                                    onChange={(e) => setReference(e.target.value)}
+                                                    placeholder="Ex: VIR-2026-12345"
+                                                    className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Preuve de paiement (PDF) {editingDeclaration ? <span className="text-slate-400 font-normal">(Optionnel si non modifié)</span> : <span className="text-red-500">*</span>}</label>
+                                                <div className="mt-1 flex justify-center rounded-lg border border-dashed border-slate-300 px-6 py-8">
+                                                    <div className="text-center">
+                                                        <UploadCloud className="mx-auto h-10 w-10 text-slate-300" />
+                                                        <div className="mt-4 flex text-sm leading-6 text-slate-600">
+                                                            <label htmlFor="file-upload" className="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 hover:text-blue-500">
+                                                                <span>Sélectionner un fichier</span>
+                                                                <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                                                            </label>
+                                                            <p className="pl-1">ou glisser-déposer</p>
+                                                        </div>
+                                                        <p className="text-xs leading-5 text-slate-500 mt-2">
+                                                            {file ? <span className="font-bold text-blue-600">{file.name}</span> : 'PDF uniquement, max 5MB'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
                                         <div>
-                                            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Banque de destination <span className="text-red-500">*</span></label>
-                                            <select 
-                                                value={bankId} 
-                                                onChange={(e) => setBankId(e.target.value)}
-                                                className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
-                                            >
-                                                <option value="">Choisir une banque...</option>
-                                                {banks.map(b => (
-                                                    <option key={b.id} value={b.id}>{b.bank_name}</option>
-                                                ))}
-                                            </select>
+                                            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Référence Mobile Money <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="text" 
+                                                value={mobileReference} 
+                                                onChange={(e) => setMobileReference(e.target.value)}
+                                                placeholder="Ex: 1425356524114"
+                                                className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-2">Saisissez l'ID de transaction reçu par SMS.</p>
                                         </div>
                                     )}
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                                            Preuve de paiement (PDF) 
-                                            {!isMobileMoney && !editingDeclaration && <span className="text-red-500"> *</span>}
-                                            {isMobileMoney && <span className="text-slate-400 font-normal ml-1">(Optionnel)</span>}
-                                        </label>
-                                        <div className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 transition-colors hover:bg-blue-50">
-                                            <UploadCloud size={36} className="text-blue-500 mb-3" />
-                                            <span className="text-base font-bold text-slate-700">
-                                                {editingDeclaration ? 'Déposez un nouveau PDF (Optionnel)' : 'Déposez le fichier PDF ici'}
-                                            </span>
-                                            <span className="text-sm text-slate-500 mt-1">ou cliquez pour parcourir</span>
-                                            <input 
-                                                type="file" 
-                                                accept=".pdf"
-                                                onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-                                                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                                            />
-                                            {file && (
-                                                <div className="mt-4 rounded bg-white px-3 py-1.5 text-sm font-semibold text-emerald-600 shadow-sm border border-emerald-100 flex items-center gap-2">
-                                                    <CheckCircle2 size={16} /> {file.name}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                                            {isMobileMoney ? 'ID de transaction (Reçu SMS)' : 'Référence de la transaction'} 
-                                            <span className="text-red-500"> *</span>
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            placeholder={isMobileMoney ? "Ex: 1234567890" : "Ex: VRT-MARS26-001"}
-                                            value={reference}
-                                            onChange={(e) => setReference(e.target.value)}
-                                            className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 uppercase font-mono"
-                                        />
-                                    </div>
 
                                     <div className="flex justify-between pt-6 border-t border-slate-100">
                                         {!editingDeclaration ? (

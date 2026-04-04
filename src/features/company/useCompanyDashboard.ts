@@ -5,6 +5,7 @@ import { Declaration, Bank } from '../../types';
 // INDISPENSABLE : On définit l'interface pour que TypeScript connaisse la structure de nos filtres
 export interface CompanyFilters {
     reference: string;
+    mobile_reference: string; // <-- Ajouté pour filtrer les paiements MoMo
     bank_id: string;
     start_date: string;
     end_date: string;
@@ -16,22 +17,23 @@ export const useCompanyDashboard = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // NOUVEAU : États pour la pagination et les filtres
+    // États pour la pagination et les filtres
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [filters, setFilters] = useState<CompanyFilters>({
-        reference: '', bank_id: '', start_date: '', end_date: ''
+        reference: '', mobile_reference: '', bank_id: '', start_date: '', end_date: ''
     });
     
     // On isole la déclaration la plus récente pour la barre de progression
     const activeDeclaration = declarations.length > 0 ? declarations[0] : null;
 
-    // MISE À JOUR : Prise en compte des filtres et de la page
+    // Prise en compte des filtres et de la page
     const fetchDeclarations = useCallback(async () => {
         setIsLoading(true);
         try {
+            const cleanFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v != null && v !== ''));
             const response = await axiosInstance.get('/company/declarations', {
-                params: { page, ...filters }
+                params: { page, ...cleanFilters }
             });
             setDeclarations(response.data.declarations.data);
             setTotalPages(response.data.declarations.last_page);
@@ -42,7 +44,7 @@ export const useCompanyDashboard = () => {
         }
     }, [page, filters]);
 
-    // NOUVEAU : Fonction pour changer un filtre facilement
+    // Fonction pour changer un filtre facilement
     const handleFilterChange = (key: keyof CompanyFilters, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
         setPage(1); // On revient à la page 1 lors d'une nouvelle recherche
@@ -63,15 +65,21 @@ export const useCompanyDashboard = () => {
         setIsSubmitting(true);
         try {
             const formData = new FormData();
-            formData.append('bank_id', data.bank_id);
-            formData.append('reference', data.reference);
             formData.append('period', new Date().toISOString().split('T')[0]);
             formData.append('amount', data.amount);
-            formData.append('payment_mode', data.payment_mode);
-            formData.append('status', 'submited'); // On soumet direct à la banque ou CNPS
+            formData.append('payment_mode', data.payment_mode); 
             
-            if (data.file) formData.append('proof_pdf', data.file);
+            const isMobileMoney = ['mobile_money', 'orange_money'].includes(data.payment_mode);
 
+            // Gestion dynamique selon le type de paiement
+            if (isMobileMoney) {
+                if (data.mobile_reference) formData.append('mobile_reference', data.mobile_reference);
+            } else {
+                if (data.bank_id) formData.append('bank_id', data.bank_id);
+                if (data.reference) formData.append('reference', data.reference);
+                if (data.file) formData.append('proof_pdf', data.file);
+            }
+            
             await axiosInstance.post('/company/declarations', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -90,15 +98,20 @@ export const useCompanyDashboard = () => {
         setIsSubmitting(true);
         try {
             const formData = new FormData();
-            formData.append('bank_id', data.bank_id);
-            formData.append('reference', data.reference);
             formData.append('amount', data.amount);
             formData.append('payment_mode', data.payment_mode);
-            formData.append('status', 'submited'); // Si on corrige un rejet, on le resoumet
-            
             formData.append('_method', 'PUT'); 
 
-            if (data.file) formData.append('proof_pdf', data.file);
+            const isMobileMoney = ['mobile_money', 'orange_money'].includes(data.payment_mode);
+
+            // Gestion dynamique selon le type de paiement (Même logique qu'à l'initiation)
+            if (isMobileMoney) {
+                if (data.mobile_reference) formData.append('mobile_reference', data.mobile_reference);
+            } else {
+                if (data.bank_id) formData.append('bank_id', data.bank_id);
+                if (data.reference) formData.append('reference', data.reference);
+                if (data.file) formData.append('proof_pdf', data.file);
+            }
 
             await axiosInstance.post(`/company/declarations/${id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -114,49 +127,19 @@ export const useCompanyDashboard = () => {
     };
 
     // ========================================================
-    // NOUVEAU : Fonction de téléchargement du reçu PDF
+    // Fonction de téléchargement de la preuve bancaire (Interne / Blob)
     // ========================================================
     const downloadProof = async (id: number, reference: string) => {
         try {
+            // Note: La route /declarations/{id}/download-proof est en dehors du groupe "company"
             const response = await axiosInstance.get(`/declarations/${id}/download-proof`, {
-                responseType: 'blob', // Indispensable pour récupérer un fichier
-            });
-
-            // Création d'un lien virtuel en mémoire pour forcer le téléchargement
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Preuve_${reference}.pdf`); // Nom du fichier
-            document.body.appendChild(link);
-            link.click();
-            
-            // Nettoyage pour ne pas surcharger la mémoire du navigateur
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(url);
-            
-            return { success: true };
-        } catch (error: any) {
-            console.error("Erreur de téléchargement", error);
-            // On gère l'erreur 404 spécifiquement si le fichier n'existe pas
-            if (error.response?.status === 404) {
-                return { success: false, message: "Le fichier n'est pas disponible ou inexistant." };
-            }
-            return { success: false, message: "Impossible de télécharger le document." };
-        }
-    };
-// ========================================================
-    // NOUVEAU : Fonction pour télécharger la QUITTANCE officielle
-    // ========================================================
-    const downloadReceipt = async (id: number, reference: string) => {
-        try {
-            const response = await axiosInstance.get(`/company/declarations/${id}/download-receipt`, {
                 responseType: 'blob', 
             });
 
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Quittance_CNPS_${reference}.pdf`);
+            link.setAttribute('download', `Preuve_${reference || id}.pdf`);
             document.body.appendChild(link);
             link.click();
             
@@ -165,18 +148,48 @@ export const useCompanyDashboard = () => {
             
             return { success: true };
         } catch (error: any) {
-            console.error("Erreur de téléchargement", error);
+            console.error("Erreur de téléchargement de la preuve", error);
             if (error.response?.status === 404) {
-                alert("La quittance officielle n'a pas encore été rattachée par la CNPS.");
-            } else {
-                alert("Impossible de télécharger la quittance.");
+                return { success: false, message: "Le fichier n'est pas disponible ou inexistant." };
             }
-            return { success: false };
+            return { success: false, message: "Impossible de télécharger le document." };
         }
     };
+
+    // ========================================================
+    // NOUVEAU : Téléchargement de la quittance via le proxy Backend (Blob)
+    // ========================================================
+    const downloadReceipt = async (id: number, reference: string) => {
+        try {
+            // Utilisation du nouvel endpoint backend qui lit le fichier FTP pour nous
+            const response = await axiosInstance.get(`/company/declarations/${id}/download-receipt`, {
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Quittance_CNPS_${reference || id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            return { success: true };
+        } catch (error: any) {
+            console.error("Erreur de téléchargement de la quittance", error);
+            if (error.response?.status === 404) {
+                return { success: false, message: error.response?.data?.message || "La quittance n'est pas encore disponible." };
+            }
+            return { success: false, message: "Impossible de récupérer la quittance depuis la CNPS." };
+        }
+    };
+
     return {
         declarations, activeDeclaration, banks, isLoading, isSubmitting, 
         page, setPage, totalPages, filters, handleFilterChange, 
-        fetchDeclarations, fetchBanks, initiatePayment, editPayment, downloadProof ,downloadReceipt// N'oubliez pas l'export !
+        fetchDeclarations, fetchBanks, initiatePayment, editPayment, 
+        downloadProof, downloadReceipt
     };
 };

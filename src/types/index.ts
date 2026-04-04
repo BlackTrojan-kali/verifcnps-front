@@ -2,11 +2,11 @@
 // 1. TYPES LITTÉRAUX (Pour une sécurité absolue)
 // ====================================================
 
-// AJOUTÉ : Le rôle 'supervisor'
 export type UserRole = 'company' | 'bank' | 'cnps' | 'supervisor';
 
 export type PaymentMode = 'virement' | 'especes' | 'ordre_virement' | 'mobile_money' | 'orange_money';
 
+// AJOUTÉ : Le statut 'initiated'
 export type DeclarationStatus = 'initiated' | 'submited' | 'bank_validated' | 'cnps_validated' | 'rejected';
 
 
@@ -24,16 +24,17 @@ export interface User {
     company?: Company;
     bank?: Bank;
     cnps?: CnpsAgent;
-    supervisor?: Supervisor; // AJOUTÉ : Relation vers le superviseur
+    supervisor?: Supervisor;
 }
 
 export interface Company {
     id: number;
     user_id: number;
-    niu: string;
+    numero_employeur: string; // REMPLACÉ : "niu" devient "numero_employeur"
     raison_sociale: string;
     telephone: string | null;
     address: string | null;
+    is_verified?: boolean; // AJOUTÉ : Champ de vérification CNPS
     created_at?: string;
     updated_at?: string;
 }
@@ -44,7 +45,7 @@ export interface Bank {
     bank_code: string;       
     bank_name: string;       
     address: string | null;  
-    is_admin?: boolean;      // AJOUTÉ : Pour différencier le chef d'agence d'un guichetier
+    is_admin?: boolean;      
     created_at?: string;
     updated_at?: string;
     user?: User;
@@ -61,7 +62,6 @@ export interface CnpsAgent {
     created_at?: string;
 }
 
-// AJOUTÉ : Nouvelle interface pour le Superviseur
 export interface Supervisor {
     id: number;
     user_id: number;
@@ -81,14 +81,38 @@ export interface Declaration {
     id: number;
     company_id: number;
     bank_id: number | null;
+    
+    // Références de transaction
     reference: string;
+    payment_id: string | null; // AJOUTÉ : ID de paiement API
+    order_reference?: string | null;
+    bank_transaction_ref: string | null; // AJOUTÉ : Réf transaction banque
     mobile_reference: string | null;
-    period: string; // Format YYYY-MM-DD renvoyé par l'API
-    amount: number | string; // Parfois renvoyé en string par l'API selon le formatage
+    
+    // Informations de paiement
+    period: string; // Format YYYY-MM-DD
+    payment_date: string | null; // AJOUTÉ : Date réelle du paiement
+    amount: number | string;
+    
+    // Mode et Origine
+    payment_mode_code: string | null; // AJOUTÉ : Code mode de paiement (ex: "14")
     payment_mode: PaymentMode | null;
+    payment_origin: string | null; // AJOUTÉ : Origine du paiement (ex: "OMCAM")
+    
+    // Méta-données API CNPS
+    employer_number: string | null; // AJOUTÉ : Matricule stocké lors de l'envoi
+    insurance_type: string | null; // AJOUTÉ : Type d'assurance
+    location_code: string | null; // AJOUTÉ : Localisation
+    
+    // Informations du payeur et banque
+    payer_phone: string | null; // AJOUTÉ : Téléphone du payeur
+    bank_name: string | null; // AJOUTÉ : Nom de la banque en texte libre
+    account_number?: string | null;
+    
+    // Fichiers et Statut
     proof_path: string | null;
-    status: DeclarationStatus;
     receipt_path?: string | null;
+    status: DeclarationStatus;
     comment_reject: string | null;
     created_at: string;
     updated_at: string;
@@ -96,7 +120,6 @@ export interface Declaration {
     // Relations jointes par le backend
     company?: Company;
     bank?: Bank;
-    order_reference?: string | null;
 }
 
 

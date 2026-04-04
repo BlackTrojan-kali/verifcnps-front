@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User } from '../types';
+import { User, UserRole } from '../types'; // N'oubliez pas d'importer UserRole depuis vos types
 
 // 1. Définition du "Contrat" (Ce que notre magasin va contenir)
 interface AuthState {
@@ -13,12 +13,16 @@ interface AuthState {
     logout: () => void;
     setUser: (user: User) => void;
     setLoading: (status: boolean) => void;
+    
+    // AJOUTÉ : Utilitaire pratique pour vérifier les permissions côté UI
+    hasRole: (roleOrRoles: UserRole | UserRole[]) => boolean;
 }
 
 // 2. Création du magasin (Store) Zustand
-const useAuthStore = create<AuthState>((set) => ({
+const useAuthStore = create<AuthState>((set, get) => ({
     // État initial (Au rafraîchissement de la page)
     user: null,
+    
     // On vérifie immédiatement si un token traîne dans le navigateur
     token: localStorage.getItem('verif_cnps_token') || null,
     isAuthenticated: !!localStorage.getItem('verif_cnps_token'),
@@ -46,6 +50,21 @@ const useAuthStore = create<AuthState>((set) => ({
     // Action : Pour gérer l'affichage du loader
     setLoading: (status) => {
         set({ isLoading: status });
+    },
+
+    // Action (Getter) : Vérifie si l'utilisateur possède le(s) rôle(s) requis
+    hasRole: (roleOrRoles) => {
+        const currentUser = get().user; // On récupère l'utilisateur actuel du store
+        
+        if (!currentUser) return false;
+
+        // Si on passe un tableau (ex: ['bank', 'cnps'])
+        if (Array.isArray(roleOrRoles)) {
+            return roleOrRoles.includes(currentUser.role);
+        }
+        
+        // Si on passe un seul rôle en string (ex: 'company')
+        return currentUser.role === roleOrRoles;
     }
 }));
 

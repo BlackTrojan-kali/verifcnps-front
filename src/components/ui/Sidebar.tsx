@@ -9,8 +9,7 @@ import {
     History,
     ChevronLeft,
     ChevronRight,
-    Shield,
-    Building2, // Ajout d'une icône pour les banques
+    Shield, // Ajout d'une icône pour les banques
     Users      // Ajout d'une icône pour les utilisateurs
 } from 'lucide-react';
 import useAuthStore from '../../store/useAuthStore';
@@ -32,7 +31,7 @@ type SidebarItem = {
 // ==========================================
 
 const CNPS_MENU: SidebarItem[] = [
-    { title: 'Supervision', path: '/cnps', icon: <LayoutDashboard size={20} /> },
+    { title: 'Déclarations', path: '/cnps', icon: <LayoutDashboard size={20} /> },
     { title: 'Reporting & Stats', path: '/cnps/reporting', icon: <BarChart3 size={20} /> },
     { title: 'Quittances', path: '/cnps/quittances', icon: <Receipt size={20} /> },
     { 
@@ -123,7 +122,7 @@ export const Sidebar = () => {
                         <Shield className="h-8 w-8 text-blue-500" />
                         <div>
                         <span className="text-xl tracking-wide uppercase">
-                            {user?.role === 'cnps' ? 'DANAZ Pay' : user?.role}
+                            {user?.role === 'cnps' ? 'DANAZ Pay':"DANAZ Pay" }
                         </span>
                         <br />
                         <span className='text-sm font-light'>by B2i & Partners</span>

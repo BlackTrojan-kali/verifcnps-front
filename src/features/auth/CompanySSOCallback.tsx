@@ -14,7 +14,7 @@ export const CompanySSOCallback = () => {
 
     useEffect(() => {
         const authenticateCompany = async () => {
-            const niu = searchParams.get('niu');
+            const niu = searchParams.get('neo');
             const name = searchParams.get('raison_sociale');
             const amount = searchParams.get('amount');
 
@@ -33,7 +33,7 @@ export const CompanySSOCallback = () => {
 
             try {
                 const response = await axiosInstance.post('/login-company', {
-                    niu: niu,
+                    neo: niu,
                     name: name
                 });
 

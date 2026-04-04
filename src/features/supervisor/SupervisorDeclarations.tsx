@@ -9,18 +9,18 @@ import {
     ChevronRight,
     Building2,
     Calendar,
-    X
+    X,
+    FileDown // Utilisé pour le bouton de téléchargement
 } from 'lucide-react';
 import { useSupervisor, DeclarationFilters } from './useSupervisor';
 import { Declaration, Bank } from '../../types';
-import axiosInstance from '../../config/axios';
 
 const SupervisorDeclarations = () => {
-    const { fetchDeclarations, fetchDeclarationDetails, isLoading,fetchBanks } = useSupervisor();
+    const { fetchDeclarations, fetchDeclarationDetails, isLoading, fetchBanks } = useSupervisor();
     
     // États des données
     const [declarations, setDeclarations] = useState<Declaration[]>([]);
-    const [banks, setBanks] = useState<Bank[]>([]); // Pour le menu déroulant des banques
+    const [banks, setBanks] = useState<Bank[]>([]); 
     
     // États de pagination
     const [page, setPage] = useState(1);
@@ -45,16 +45,14 @@ const SupervisorDeclarations = () => {
     useEffect(() => {
         const loadBanks = async () => {
             try {
-                // Assurez-vous d'avoir cette route publique ou protégée pour lister les banques
                 const response = await fetchBanks();
-                console.log(response)
                 setBanks(response || response?.data);
             } catch (error) {
                 console.error("Erreur de chargement des banques", error);
             }
         };
         loadBanks();
-    }, []);
+    }, [fetchBanks]);
 
     // 2. Charger les déclarations
     const loadData = useCallback(async () => {
@@ -65,7 +63,7 @@ const SupervisorDeclarations = () => {
             setTotalItems(data.total);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page]); // On recharge uniquement quand la page change ou quand on clique sur "Filtrer"
+    }, [page]); 
 
     // Charger les données au montage et à chaque changement de page
     useEffect(() => {
@@ -75,14 +73,13 @@ const SupervisorDeclarations = () => {
     // 3. Gestionnaires d'événements
     const handleFilterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setPage(1); // On revient à la page 1 lors d'une nouvelle recherche
+        setPage(1); 
         loadData();
     };
 
     const resetFilters = () => {
         setFilters({ search: '', status: '', payment_mode: '', bank_id: '', start_date: '', end_date: '' });
         setPage(1);
-        // Le setTimeout permet d'attendre que le state soit mis à jour avant de recharger
         setTimeout(() => loadData(), 0);
     };
 
@@ -131,7 +128,7 @@ const SupervisorDeclarations = () => {
                         
                         {/* Recherche texte */}
                         <div className="xl:col-span-2">
-                            <label className="block text-xs font-medium text-slate-700 mb-1">Recherche (Réf, NIU, Nom)</label>
+                            <label className="block text-xs font-medium text-slate-700 mb-1">Recherche (Réf, Num employeur, Nom)</label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                                 <input 
@@ -185,7 +182,7 @@ const SupervisorDeclarations = () => {
                             >
                                 <option value="">Toutes les banques</option>
                                 {banks.map(bank => (
-                                    <option key={bank.id} value={bank.id}>{bank.bank_name}</option>
+                                    <option key={bank.id} value={bank.id.toString()}>{bank.bank_name}</option>
                                 ))}
                             </select>
                         </div>
@@ -240,7 +237,7 @@ const SupervisorDeclarations = () => {
                             <tr>
                                 <th className="px-6 py-4 font-semibold">Date & Période</th>
                                 <th className="px-6 py-4 font-semibold">Référence</th>
-                                <th className="px-6 py-4 font-semibold">Entreprise</th>
+                                <th className="px-6 py-4 font-semibold">Employeur</th>
                                 <th className="px-6 py-4 font-semibold">Banque & Mode</th>
                                 <th className="px-6 py-4 font-semibold">Montant</th>
                                 <th className="px-6 py-4 font-semibold">Statut</th>
@@ -294,17 +291,30 @@ const SupervisorDeclarations = () => {
                                             {getStatusBadge(dec.status)}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button 
-                                                onClick={() => handleViewDetails(dec.id)}
-                                                className="inline-flex items-center justify-center p-2 rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors"
-                                                title="Voir les détails"
-                                            >
-                                                {isDetailsLoading && selectedDeclaration?.id === dec.id ? (
-                                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                                ) : (
-                                                    <Eye className="h-5 w-5" />
+                                            <div className="flex items-center justify-center gap-2">
+                                                {dec.receipt_path && (
+                                                    <a 
+                                                        href={dec.receipt_path}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center justify-center p-2 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                                        title="Ouvrir la quittance"
+                                                    >
+                                                        <FileDown className="h-5 w-5" />
+                                                    </a>
                                                 )}
-                                            </button>
+                                                <button 
+                                                    onClick={() => handleViewDetails(dec.id)}
+                                                    className="inline-flex items-center justify-center p-2 rounded-md text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                    title="Voir les détails"
+                                                >
+                                                    {isDetailsLoading && selectedDeclaration?.id === dec.id ? (
+                                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                                    ) : (
+                                                        <Eye className="h-5 w-5" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -340,7 +350,7 @@ const SupervisorDeclarations = () => {
                 )}
             </div>
 
-            {/* MODALE DE DÉTAILS (Optionnelle) */}
+            {/* MODALE DE DÉTAILS */}
             {selectedDeclaration && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl animate-in zoom-in duration-200">
@@ -387,6 +397,25 @@ const SupervisorDeclarations = () => {
                                 </div>
                             </div>
 
+                            {/* Section Quittance ajoutée dans la modale */}
+                            {selectedDeclaration.receipt_path && (
+                                <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Document Officiel</p>
+                                        <p className="text-sm text-emerald-800">La quittance a été délivrée pour cette transaction.</p>
+                                    </div>
+                                    <a 
+                                        href={selectedDeclaration.receipt_path}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors w-full sm:w-auto justify-center"
+                                    >
+                                        <FileDown size={16} />
+                                        Ouvrir la quittance
+                                    </a>
+                                </div>
+                            )}
+
                             {selectedDeclaration.comment_reject && (
                                 <div className="bg-red-50 border border-red-100 rounded-lg p-4">
                                     <p className="text-xs text-red-500 uppercase tracking-wider font-semibold mb-1">Motif du rejet</p>
@@ -409,4 +438,4 @@ const SupervisorDeclarations = () => {
         </div>
     );
 };
-export default SupervisorDeclarations
+export default SupervisorDeclarations;

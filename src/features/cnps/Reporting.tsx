@@ -1,5 +1,4 @@
-
-import { Calendar, Download, TrendingUp, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { Calendar, TrendingUp, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useReporting } from './useReporting';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -7,7 +6,8 @@ import {
 } from 'recharts';
 
 export const Reporting = () => {
-    const { stats, isLoading, exportReport, isExporting } = useReporting();
+    // Suppression de exportReport et isExporting
+    const { stats, isLoading } = useReporting(); 
 
     // Formateur pour l'axe Y (Convertir 120000000 en 120M)
     const formatYAxis = (tickItem: number) => {
@@ -53,15 +53,7 @@ export const Reporting = () => {
                         <Calendar size={18} className="text-slate-400" />
                         <span className="text-sm text-slate-600 font-medium">Cumul Global</span>
                     </div>
-
-                    <button 
-                        onClick={exportReport}
-                        disabled={isExporting}
-                        className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-md bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-900 disabled:opacity-70"
-                    >
-                        {isExporting ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                        Exporter le Rapport (PDF)
-                    </button>
+                    {/* Bouton d'exportation supprimé selon vos instructions */}
                 </div>
             </div>
 
@@ -107,7 +99,7 @@ export const Reporting = () => {
                                 <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} width={60} />
                                 <Tooltip 
                                     cursor={{ fill: '#f8fafc' }}
-                                   formatter={(value: any) => [`${Number(value).toLocaleString('fr-FR')} FCFA`, 'Montant encaissé']}
+                                    formatter={(value: any) => [`${Number(value).toLocaleString('fr-FR')} FCFA`, 'Montant encaissé']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                 />
                                 <Bar dataKey="amount" fill="#1e40af" radius={[4, 4, 0, 0]} maxBarSize={50} />

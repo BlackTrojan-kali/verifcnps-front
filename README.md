@@ -30,4 +30,4 @@ export default {
 - Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
 
 
-http://localhost:5173/sso/callback?niu=M123456789&raison_sociale=Alpha%20SARL&amount=4500000 test link
+http://localhost:5173/sso/callback?neo=M123456789&raison_sociale=Alpha%20SARL&amount=4500000 test link

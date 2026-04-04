@@ -4,7 +4,9 @@ import { Declaration } from '../../types';
 
 export interface BankFilters {
     reference: string;
+    mobile_reference: string; // <-- Ajouté pour correspondre au backend
     status: string;
+    period: string;           // <-- Ajouté pour correspondre au backend
     start_date: string;
     end_date: string;
 }
@@ -18,17 +20,21 @@ export const useBankHistory = () => {
     const [totalPages, setTotalPages] = useState(1);
     
     const [filters, setFilters] = useState<BankFilters>({
-        reference: '', status: '', start_date: '', end_date: ''
+        reference: '', mobile_reference: '', status: '', period: '', start_date: '', end_date: ''
     });
 
     const fetchDeclarations = useCallback(async () => {
         setIsLoading(true);
         try {
+            // On nettoie les filtres vides pour ne pas surcharger l'URL
+            const cleanFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''));
             const response = await axiosInstance.get('/bank/declarations', {
-                params: { page, ...filters }
+                params: { page, ...cleanFilters }
             });
-            setDeclarations(response.data.data);
-            setTotalPages(response.data.last_page);
+            
+            // Selon la structure de pagination Laravel (response.data ou response.data.data)
+            setDeclarations(response.data.data || response.data);
+            setTotalPages(response.data.last_page || 1);
         } catch (error) {
             console.error("Erreur lors de la récupération de l'historique", error);
         } finally {
@@ -42,7 +48,7 @@ export const useBankHistory = () => {
     };
 
     const resetFilters = () => {
-        setFilters({ reference: '', status: '', start_date: '', end_date: '' });
+        setFilters({ reference: '', mobile_reference: '', status: '', period: '', start_date: '', end_date: '' });
         setPage(1);
     };
 
@@ -53,13 +59,15 @@ export const useBankHistory = () => {
     const validatePayment = async (id: number, reference: string, orderReference?: string) => {
         setIsActionLoading(true);
         try {
+            // Payload aligné strictement sur les règles du BankController
             const payload: any = { reference };
             if (orderReference) payload.order_reference = orderReference;
 
             const response = await axiosInstance.put(`/bank/declarations/${id}/validate`, payload);
             
+            // Mise à jour de l'état local
             setDeclarations(prev => prev.map(dec => 
-                dec.id === id ? { ...dec, status: 'bank_validated', reference, order_reference: orderReference } : dec
+                dec.id === id ? { ...dec, status: 'bank_validated', reference, order_reference: orderReference || null } : dec
             ));
             
             return { success: true, message: response.data.message };
@@ -73,7 +81,10 @@ export const useBankHistory = () => {
     const rejectPayment = async (id: number, comment: string) => {
         setIsActionLoading(true);
         try {
-            const response = await axiosInstance.put(`/bank/declarations/${id}/reject`, { comment_reject: comment });
+            // Payload aligné strictement sur les règles du BankController
+            const response = await axiosInstance.put(`/bank/declarations/${id}/reject`, { 
+                comment_reject: comment
+            });
             
             setDeclarations(prev => prev.map(dec => 
                 dec.id === id ? { ...dec, status: 'rejected', comment_reject: comment } : dec
@@ -91,9 +102,12 @@ export const useBankHistory = () => {
     // SAISIE AU GUICHET (MANUELLE)
     // ==========================================
 
-    const searchCompany = async (niu: string) => {
+    // Recherche avec le Numéro Employeur (anciennement NIU)
+    const searchCompany = async (numero_employeur: string) => {
         try {
-            const response = await axiosInstance.get('/bank/companies/search', { params: { niu } });
+            const response = await axiosInstance.get('/bank/companies/search', { 
+                params: { numero_employeur } 
+            });
             return { success: true, company: response.data.company };
         } catch (error: any) {
             return { success: false, message: error.response?.data?.message || "Entreprise introuvable." };
@@ -147,6 +161,7 @@ export const useBankHistory = () => {
         }
     };
 
+    // Note : Cette route n'existe pas actuellement dans votre backend Laravel.
     const deleteCounterDeposit = async (id: number) => {
         setIsActionLoading(true);
         try {
@@ -182,11 +197,13 @@ export const useBankHistory = () => {
         }
     };
 
+    // Note: cette route est sur le préfixe global (hors de /bank/)
     const downloadProof = (id: number, ref: string) => 
-        downloadFile(`/declarations/${id}/download-proof`, `Preuve_Banque_${ref}.pdf`);
+        downloadFile(`/declarations/${id}/download-proof`, `Preuve_Banque_${ref || id}.pdf`);
 
+    // Note: La route de téléchargement de quittance pour la banque n'existe pas actuellement
     const downloadReceipt = (id: number, ref: string) => 
-        downloadFile(`/declarations/${id}/download-receipt`, `Quittance_CNPS_${ref}.pdf`);
+        downloadFile(`/bank/declarations/${id}/download-receipt`, `Quittance_CNPS_${ref || id}.pdf`);
 
     return {
         declarations, isLoading, isActionLoading,
@@ -195,6 +212,6 @@ export const useBankHistory = () => {
         fetchDeclarations, 
         validatePayment, rejectPayment,
         searchCompany, createCounterDeposit, updateCounterDeposit, deleteCounterDeposit,
-        downloadProof, downloadReceipt 
+        downloadProof, downloadReceipt, downloadFile
     };
 };

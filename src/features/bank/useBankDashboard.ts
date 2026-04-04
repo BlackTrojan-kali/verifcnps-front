@@ -35,20 +35,18 @@ export const useBankDashboard = () => {
         end_date: ''
     });
 
-    const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (filters = {}) => {
         setIsLoading(true);
         try {
-            // Appel à la nouvelle route que nous venons de créer
-            const response = await axiosInstance.get('/bank/dashboard-stats', { 
-                params: filters 
-            });
+            const cleanFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''));
+            const response = await axiosInstance.get('/bank/dashboard-stats', { params: cleanFilters });
             setStats(response.data);
         } catch (error) {
-            console.error("Erreur lors de la récupération des statistiques de la banque", error);
+            console.error("Erreur stats", error);
         } finally {
             setIsLoading(false);
         }
-    }, [filters]);
+    }, []);
 
     const handleFilterChange = (key: keyof DashboardFilters, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
